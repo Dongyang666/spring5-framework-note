@@ -5,6 +5,10 @@ import org.springframework.stereotype.Component;
 /**
  * @author liudongyang
  */
-@Component
+@Component("test1111")
 public class Test {
+	public Test(){
+		System.out.println("create Test");
+	}
+
 }

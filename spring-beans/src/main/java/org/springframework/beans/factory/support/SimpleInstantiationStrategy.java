@@ -16,13 +16,6 @@
 
 package org.springframework.beans.factory.support;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedExceptionAction;
-
 import org.springframework.beans.BeanInstantiationException;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.BeanFactory;
@@ -30,6 +23,13 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedExceptionAction;
 
 /**
  * Simple object instantiation strategy for use in a BeanFactory.
@@ -62,6 +62,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 		// Don't override the class with CGLIB if no overrides.
 		if (!bd.hasMethodOverrides()) {
 			Constructor<?> constructorToUse;
+			//需要锁住防止多线程的时候重复设置
 			synchronized (bd.constructorArgumentLock) {
 				constructorToUse = (Constructor<?>) bd.resolvedConstructorOrFactoryMethod;
 				if (constructorToUse == null) {
@@ -77,6 +78,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 						else {
 							constructorToUse = clazz.getDeclaredConstructor();
 						}
+						//缓存这个BeanDefinition的构造函数
 						bd.resolvedConstructorOrFactoryMethod = constructorToUse;
 					}
 					catch (Throwable ex) {

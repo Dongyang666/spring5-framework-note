@@ -15,17 +15,24 @@ import org.springframework.stereotype.Component;
 public class SpringBean implements InitializingBean, DisposableBean, BeanNameAware, BeanFactoryAware, BeanClassLoaderAware{
 	public static ApplicationContext applicationContext = null;
 
+	private String aa = "123";
+	private int i =567 ;
 
+
+	@Autowired
 	public SpringBean(Test test) {
+		System.out.println(test);
 		System.out.println("SpringBean构造方法:" + studentService);
 		System.out.println("SpringBean---Test构造方法");
 	}
-	@Autowired
+
+
 	public SpringBean(){
 		System.out.println("SpringBean---默认构造方法");
 	}
 
-	public SpringBean(Prototype prototype){
+
+	public SpringBean(Test test2,Test test){
 		System.out.println("SpringBean---prototype构造方法");
 	}
 
@@ -68,11 +75,6 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 
 	public void destroyMethod() {
 		System.out.println("destroyMethod");
-	}
-
-	@Lookup
-	public Prototype getPrototype(){
-		return null;
 	}
 
 }

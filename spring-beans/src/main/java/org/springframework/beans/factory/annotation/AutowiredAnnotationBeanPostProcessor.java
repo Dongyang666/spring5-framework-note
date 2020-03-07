@@ -360,6 +360,10 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 							defaultConstructor = candidate;
 						}
 					}
+
+
+
+					//加了@Autowired注解
 					if (!candidates.isEmpty()) {
 						// Add default constructor to list of optional constructors, as fallback.
 						if (requiredConstructor == null) {
@@ -375,16 +379,20 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						}
 						candidateConstructors = candidates.toArray(new Constructor<?>[0]);
 					}
+					//候选方法只有一个，并且构造方法参数大于零则选他
 					else if (rawCandidates.length == 1 && rawCandidates[0].getParameterCount() > 0) {
 						candidateConstructors = new Constructor<?>[] {rawCandidates[0]};
 					}
+					//这个应该和kotlin有关看不懂，反正还是默认构造方法
 					else if (nonSyntheticConstructors == 2 && primaryConstructor != null &&
 							defaultConstructor != null && !primaryConstructor.equals(defaultConstructor)) {
 						candidateConstructors = new Constructor<?>[] {primaryConstructor, defaultConstructor};
 					}
+					//还是和kotlin有关看不懂
 					else if (nonSyntheticConstructors == 1 && primaryConstructor != null) {
 						candidateConstructors = new Constructor<?>[] {primaryConstructor};
 					}
+					//空的构造方法
 					else {
 						candidateConstructors = new Constructor<?>[0];
 					}

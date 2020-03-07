@@ -1204,12 +1204,26 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Candidate constructors for autowiring?
 		//见名知意，通过Bean后置处理器推断构造方法
+		//主要是这个后置处理器完成处理的
+		//AutowiredAnnotationBeanPostProcessor#determineCandidateConstructors
+		//如果有多个构造函数都没有加@Autowired注解则这个地方返回null，
+		//如果有多个构造函数但有两个加了@Autowired注解则抛出异常
+		//如果有多个构造函数但有一个加了@Autowired注解则返回此构造函数。
+		//如果只有一个构造函数但不是默认的则返回这个构造函数
+		//如果只有一个构造函数就是默认构造函数，则返回null
+		//如果只有一个构造函数并且加了@Autowired注解则返回此构造函数
 		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
+
+
+		//如果ctors不会空，那只有两种情况第一种情况是构造函数加了@autowired注解
+		//第二种是只有一个含参数的构造函数。
 		if (ctors != null || mbd.getResolvedAutowireMode() == AUTOWIRE_CONSTRUCTOR ||
 				mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args)) {
+			//这个应该会给构造函数的参数，注入bean（如果不存在则抛出异常）
 			return autowireConstructor(beanName, mbd, ctors, args);
 		}
 
+		//没看懂不知道啥意思
 		// Preferred constructors for default construction?
 		ctors = mbd.getPreferredConstructors();
 		if (ctors != null) {
@@ -1217,7 +1231,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// No special handling: simply use no-arg constructor.
-		//实例化bean
+		//通过默认的构造方法实例化bean
 		return instantiateBean(beanName, mbd);
 	}
 
@@ -1316,10 +1330,15 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						getAccessControlContext());
 			}
 			else {
+				//如果有lookup方法则生成cglib代理对象
+				//第三个值是吧当前的beanFactory穿进去了，
+				//使用cglib拦截lookup方法和replace方法
 				beanInstance = getInstantiationStrategy().instantiate(mbd, beanName, parent);
 			}
+			//
 			BeanWrapper bw = new BeanWrapperImpl(beanInstance);
 			initBeanWrapper(bw);
+			//System.out.println(bw.getPropertyValue("i"));
 			return bw;
 		}
 		catch (Throwable ex) {

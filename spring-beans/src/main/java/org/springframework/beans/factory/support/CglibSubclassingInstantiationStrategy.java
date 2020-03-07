@@ -16,28 +16,21 @@
 
 package org.springframework.beans.factory.support;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.springframework.beans.BeanInstantiationException;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.cglib.core.ClassLoaderAwareGeneratorStrategy;
 import org.springframework.cglib.core.SpringNamingPolicy;
-import org.springframework.cglib.proxy.Callback;
-import org.springframework.cglib.proxy.CallbackFilter;
-import org.springframework.cglib.proxy.Enhancer;
-import org.springframework.cglib.proxy.Factory;
-import org.springframework.cglib.proxy.MethodInterceptor;
-import org.springframework.cglib.proxy.MethodProxy;
-import org.springframework.cglib.proxy.NoOp;
+import org.springframework.cglib.proxy.*;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 
 /**
  * Default object instantiation strategy for use in BeanFactories.
@@ -130,6 +123,7 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 			}
 			// SPR-10785: set callbacks directly on the instance instead of in the
 			// enhanced class (via the Enhancer) in order to avoid memory leaks.
+			//看不懂为什么可以强转成Factory并且为什么这么做可以避免内存泄露？？？？
 			Factory factory = (Factory) instance;
 			factory.setCallbacks(new Callback[] {NoOp.INSTANCE,
 					new LookupOverrideMethodInterceptor(this.beanDefinition, this.owner),
@@ -147,8 +141,11 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 			enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
 			if (this.owner instanceof ConfigurableBeanFactory) {
 				ClassLoader cl = ((ConfigurableBeanFactory) this.owner).getBeanClassLoader();
+				//字节码生成策略，默认实现是DefaultGeneratorStrategy
+				//看不懂
 				enhancer.setStrategy(new ClassLoaderAwareGeneratorStrategy(cl));
 			}
+
 			enhancer.setCallbackFilter(new MethodOverrideCallbackFilter(beanDefinition));
 			enhancer.setCallbackTypes(CALLBACK_TYPES);
 			return enhancer.createClass();
@@ -231,6 +228,8 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 			this.owner = owner;
 		}
 
+		//lookup方法的拦截器，
+		//直接拿到返回值。去调用getBean方法
 		@Override
 		public Object intercept(Object obj, Method method, Object[] args, MethodProxy mp) throws Throwable {
 			// Cast is safe, as CallbackFilter filters are used selectively.

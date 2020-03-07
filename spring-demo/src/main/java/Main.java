@@ -15,6 +15,7 @@ public class Main {
 		//ac.getBean(TestStaticAware.class).test();
 		//System.out.println(ac.getBean(OtherClass.class));
 		ac.close();
+		//BeanWrapper bw = new BeanWrapperImpl(new SpringBean());
 		//System.out.println(ac.getBean("testClass"));
 		//ac.getBean(Service.class).query();
 

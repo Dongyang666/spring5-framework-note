@@ -16,38 +16,9 @@
 
 package org.springframework.beans.factory.support;
 
-import java.beans.ConstructorProperties;
-import java.lang.reflect.Array;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Executable;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import org.apache.commons.logging.Log;
-
-import org.springframework.beans.BeanMetadataElement;
-import org.springframework.beans.BeanWrapper;
-import org.springframework.beans.BeanWrapperImpl;
-import org.springframework.beans.BeansException;
-import org.springframework.beans.TypeConverter;
-import org.springframework.beans.TypeMismatchException;
-import org.springframework.beans.factory.BeanCreationException;
-import org.springframework.beans.factory.BeanDefinitionStoreException;
-import org.springframework.beans.factory.InjectionPoint;
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
-import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
-import org.springframework.beans.factory.UnsatisfiedDependencyException;
+import org.springframework.beans.*;
+import org.springframework.beans.factory.*;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.ConstructorArgumentValues;
 import org.springframework.beans.factory.config.ConstructorArgumentValues.ValueHolder;
@@ -57,12 +28,13 @@ import org.springframework.core.MethodParameter;
 import org.springframework.core.NamedThreadLocal;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
-import org.springframework.util.ClassUtils;
-import org.springframework.util.MethodInvoker;
-import org.springframework.util.ObjectUtils;
-import org.springframework.util.ReflectionUtils;
-import org.springframework.util.StringUtils;
+import org.springframework.util.*;
+
+import java.beans.ConstructorProperties;
+import java.lang.reflect.*;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.*;
 
 /**
  * Delegate for resolving constructors and factory methods.
@@ -128,17 +100,23 @@ class ConstructorResolver {
 		BeanWrapperImpl bw = new BeanWrapperImpl();
 		this.beanFactory.initBeanWrapper(bw);
 
+		//这个变量用来存储构造方法是不是已经被解析过了？？解析过了就可以不用解析了
 		Constructor<?> constructorToUse = null;
 		ArgumentsHolder argsHolderToUse = null;
+		//这个变量使用存储构造方法的的参数是不是已经被解析过了，解析过了就不解析了，
 		Object[] argsToUse = null;
 
+		//getBean方法传过来的参数---暂时不知道怎么传来的。
 		if (explicitArgs != null) {
 			argsToUse = explicitArgs;
 		}
+		//从BeanDefinition的中获取构造函数和构造函数的参数（BeanDefinition会把构造函数和构造函数参数用两个参数缓存起来）
 		else {
 			Object[] argsToResolve = null;
 			synchronized (mbd.constructorArgumentLock) {
+				//获取一下是不是已经解析过构造函数了---
 				constructorToUse = (Constructor<?>) mbd.resolvedConstructorOrFactoryMethod;
+				//构造函数已经解析过了，并且参数也已经解析过了
 				if (constructorToUse != null && mbd.constructorArgumentsResolved) {
 					// Found a cached constructor...
 					argsToUse = mbd.resolvedConstructorArguments;
@@ -152,9 +130,13 @@ class ConstructorResolver {
 			}
 		}
 
+
+
+		//如果有构造方法或者构造函数参数未解析进来这个分支进行解析，否则直接初始化即可。。
 		if (constructorToUse == null || argsToUse == null) {
 			// Take specified constructors, if any.
 			Constructor<?>[] candidates = chosenCtors;
+			//如果构造方法为空获取候选的构造方法
 			if (candidates == null) {
 				Class<?> beanClass = mbd.getBeanClass();
 				try {
@@ -168,20 +150,30 @@ class ConstructorResolver {
 				}
 			}
 
+			//这个地方处理的是空构造函数加了@AutoWired的情况
+			//默认构造函数
 			if (candidates.length == 1 && explicitArgs == null && !mbd.hasConstructorArgumentValues()) {
 				Constructor<?> uniqueCandidate = candidates[0];
 				if (uniqueCandidate.getParameterCount() == 0) {
+					//用构造参数锁锁住这个地方，防止另一个线程设置值
 					synchronized (mbd.constructorArgumentLock) {
+						//设置缓存构造函数
 						mbd.resolvedConstructorOrFactoryMethod = uniqueCandidate;
+						//构造函数已经被Resolved
 						mbd.constructorArgumentsResolved = true;
+						//构造函数的参数为空值
 						mbd.resolvedConstructorArguments = EMPTY_ARGS;
 					}
+					//使用默认构造方法创建对象
 					bw.setBeanInstance(instantiate(beanName, mbd, uniqueCandidate, EMPTY_ARGS));
 					return bw;
 				}
 			}
 
+			//到这个地方就是--构造函数是有参数的
 			// Need to resolve the constructor.
+			//判断是不是要自动注入
+			//构造函数不为空则就是自动注入了---
 			boolean autowiring = (chosenCtors != null ||
 					mbd.getResolvedAutowireMode() == AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR);
 			ConstructorArgumentValues resolvedValues = null;
@@ -191,6 +183,7 @@ class ConstructorResolver {
 				minNrOfArgs = explicitArgs.length;
 			}
 			else {
+				//返回构造参数值-如果不存在直接new一个
 				ConstructorArgumentValues cargs = mbd.getConstructorArgumentValues();
 				resolvedValues = new ConstructorArgumentValues();
 				minNrOfArgs = resolveConstructorArguments(beanName, mbd, bw, cargs, resolvedValues);
@@ -218,6 +211,7 @@ class ConstructorResolver {
 				Class<?>[] paramTypes = candidate.getParameterTypes();
 				if (resolvedValues != null) {
 					try {
+						//获取@ConstructorProperties这个注解的值
 						String[] paramNames = ConstructorPropertiesChecker.evaluate(candidate, parameterCount);
 						if (paramNames == null) {
 							ParameterNameDiscoverer pnd = this.beanFactory.getParameterNameDiscoverer();
@@ -225,6 +219,7 @@ class ConstructorResolver {
 								paramNames = pnd.getParameterNames(candidate);
 							}
 						}
+						//这个地方会去创建通过构造方法注入的bean对象
 						argsHolder = createArgumentArray(beanName, mbd, resolvedValues, bw, paramTypes, paramNames,
 								getUserDeclaredConstructor(candidate), autowiring, candidates.length == 1);
 					}
@@ -729,6 +724,7 @@ class ConstructorResolver {
 		Set<ConstructorArgumentValues.ValueHolder> usedValueHolders = new HashSet<>(paramTypes.length);
 		Set<String> autowiredBeanNames = new LinkedHashSet<>(4);
 
+		//遍历注入的多个bean---挨个处理注入
 		for (int paramIndex = 0; paramIndex < paramTypes.length; paramIndex++) {
 			Class<?> paramType = paramTypes[paramIndex];
 			String paramName = (paramNames != null ? paramNames[paramIndex] : "");
@@ -786,6 +782,9 @@ class ConstructorResolver {
 							"] - did you specify the correct bean references as arguments?");
 				}
 				try {
+
+
+					//去创建构造函数中的参数bean
 					Object autowiredArgument = resolveAutowiredArgument(
 							methodParam, beanName, autowiredBeanNames, converter, fallback);
 					args.rawArguments[paramIndex] = autowiredArgument;
@@ -881,13 +880,17 @@ class ConstructorResolver {
 			}
 			return injectionPoint;
 		}
+
 		try {
+
+			//调用工厂的解决依赖方法去创建依赖的对象
 			return this.beanFactory.resolveDependency(
 					new DependencyDescriptor(param, true), beanName, autowiredBeanNames, typeConverter);
 		}
 		catch (NoUniqueBeanDefinitionException ex) {
 			throw ex;
 		}
+
 		catch (NoSuchBeanDefinitionException ex) {
 			if (fallback) {
 				// Single constructor or factory method -> let's return an empty array/collection
