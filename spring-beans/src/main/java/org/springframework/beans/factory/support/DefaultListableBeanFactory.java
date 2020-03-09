@@ -1169,7 +1169,6 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			Object result = getAutowireCandidateResolver().getLazyResolutionProxyIfNecessary(
 					descriptor, requestingBeanName);
 			if (result == null) {
-
 				//核心创建依赖bean方法
 				result = doResolveDependency(descriptor, requestingBeanName, autowiredBeanNames, typeConverter);
 			}
@@ -1177,6 +1176,23 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 	}
 
+	/**
+	 * 这个方法核心就是解决官网上这段话的描述
+	 *
+	 * With byType or constructor autowiring mode, you can wire arrays and typed collections.
+	 * In such cases, all autowire candidates within the container that match the expected
+	 * type are provided to satisfy the dependency. You can autowire strongly-typed Map
+	 * instances if the expected key type is String. An autowired Map instance’s values
+	 * consist of all bean instances that match the expected type, and the Map instance’s keys
+	 * contain the corresponding bean names.
+	 *
+	 * 使用byType或构造函数自动装配模式，您可以注入数组和类型化的集合。
+	 * 在这种情况下，将提供容器中与期望类型匹配的所有自动装配候选，以满足相关性。
+	 * 如果期望的键类型为String，则可以自动装配强类型Map实例。
+	 * 自动装配的Map实例的值包括与期望类型匹配的所有bean实例，并且Map实例的键包含相应的bean名称。
+	 *
+	 * 集合应该是这个方法解决的 resolveMultipleBeans
+	 */
 	@Nullable
 	public Object doResolveDependency(DependencyDescriptor descriptor, @Nullable String beanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
@@ -1192,6 +1208,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			Object value = getAutowireCandidateResolver().getSuggestedValue(descriptor);
 			//这个应该是自定义啥啥的看不懂，跳过
 			if (value != null) {
+				//如果注入类型是一个String的话,
+				//如果自定义了转换器这个地方应该会转换吧？？
+				//https://docs.spring.io/spring-framework/docs/current/spring-framework-reference/core.html#core-convert
+				//有时间研究一下这段
+				//这个后面在分析吧现在看不懂
 				if (value instanceof String) {
 					String strVal = resolveEmbeddedValue((String) value);
 					BeanDefinition bd = (beanName != null && containsBean(beanName) ?
@@ -1211,12 +1232,16 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 
 
-			//不懂这是啥也看不懂----
+			//这个地方应该是解决一个参数可以注入多个bean这种操作
+			//类似于List<BeanType> Map<String,BeanType>
+			//这个方法里面会创建注入的BeanType了
 			Object multipleBeans = resolveMultipleBeans(descriptor, beanName, autowiredBeanNames, typeConverter);
 			if (multipleBeans != null) {
 				return multipleBeans;
 			}
-			//这个方法会返回注入对象map<beanName,Clazz> 集合
+
+			//这个方法应该是解决那种直接给Type类型的
+			//这个方法会返回注入对象map<beanName,Clazz>集合
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, type, descriptor);
 			if (matchingBeans.isEmpty()) {
 				if (isRequired(descriptor)) {
@@ -1224,7 +1249,6 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				}
 				return null;
 			}
-
 			String autowiredBeanName;
 			Object instanceCandidate;
 
@@ -1252,12 +1276,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				//需要注入的bean对应的clazz对象
 				instanceCandidate = entry.getValue();
 			}
-
 			if (autowiredBeanNames != null) {
 				autowiredBeanNames.add(autowiredBeanName);
 			}
 			if (instanceCandidate instanceof Class) {
-
 				//创建构造方法依赖的bean
 				//非常的随意就是从工厂getBean
 				instanceCandidate = descriptor.resolveCandidate(autowiredBeanName, type, this);
@@ -1285,6 +1307,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 		final Class<?> type = descriptor.getDependencyType();
 
+		//看不太懂应该是处理流式依赖？？
 		if (descriptor instanceof StreamDependencyDescriptor) {
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, type, descriptor);
 			if (autowiredBeanNames != null) {
@@ -1298,6 +1321,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 			return stream;
 		}
+
+
+		//如果注入是一个数组，和Collection同理
 		else if (type.isArray()) {
 			Class<?> componentType = type.getComponentType();
 			ResolvableType resolvableType = descriptor.getResolvableType();
@@ -1326,22 +1352,39 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 			return result;
 		}
+
+		//注入是Collection类型的比如List Set等
 		else if (Collection.class.isAssignableFrom(type) && type.isInterface()) {
+			//拿到集合中的泛型类
 			Class<?> elementType = descriptor.getResolvableType().asCollection().resolveGeneric();
+			//如果泛型为空直接返回了
 			if (elementType == null) {
 				return null;
 			}
+			//和单个BeanType一样都是调用这个方法
+			//为什么返回是Map集合？因为可能有这种情况List<interface>？
+			//这时候就需要map集合里面放的是所有实现了interface接口的所有注册到spring容器的实例？？
+			//这个map集合的value是class对象
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, elementType,
 					new MultiElementDescriptor(descriptor));
+
 			if (matchingBeans.isEmpty()) {
 				return null;
 			}
 			if (autowiredBeanNames != null) {
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
+			//这个地方为什么需要类型转换，因为注入是List或者Set，而matchingBeans这样取出来的只是通过getBean方法
+			//获取的一个bean实例所以这个地方要转成Set或者List才行
 			TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
+			//会转成List集合
+			//type这个type就是List集合类型的
+			//这个方法进行类型转换的
+			//org.springframework.beans.TypeConverterDelegate.convertIfNecessary
+			//这个方法后面再分析----属性注入模块部分应该还会遇到这个方法。
 			Object result = converter.convertIfNecessary(matchingBeans.values(), type);
 			if (result instanceof List) {
+				//排序？
 				Comparator<Object> comparator = adaptDependencyComparator(matchingBeans);
 				if (comparator != null) {
 					((List<?>) result).sort(comparator);
@@ -1349,16 +1392,23 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 			return result;
 		}
+
+		//处理注入是Map集合类型的
 		else if (Map.class == type) {
 			ResolvableType mapType = descriptor.getResolvableType().asMap();
 			Class<?> keyType = mapType.resolveGeneric(0);
+			//如果key不是String类型直接不注入bean
 			if (String.class != keyType) {
 				return null;
 			}
+			//拿到value的类型
 			Class<?> valueType = mapType.resolveGeneric(1);
 			if (valueType == null) {
 				return null;
 			}
+			//同理还是调用findAutowireCandidates，获得实例
+			//为什么是map集合呢？因为可能Map<String,Interface>这种的话可以注入
+			//多个实现了Interface接口的实例
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, valueType,
 					new MultiElementDescriptor(descriptor));
 			if (matchingBeans.isEmpty()) {
@@ -1369,6 +1419,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 			return matchingBeans;
 		}
+		//什么都不是直接返回
 		else {
 			return null;
 		}
@@ -1429,7 +1480,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		Map<String, Object> result = new LinkedHashMap<>(candidateNames.length);
 
 
-		//不知道这是干啥，不过这个resolvableDependencies里面的值全是spring内部自己的bean
+		//这个resolvableDependencies里面的值全是spring内部自己的bean
+		//应该是早已经创建好放到map中的
 		//org.springframework.context.ApplicationContext
 		//org.springframework.context.ApplicationEventPublisher
 		//org.springframework.beans.factory.BeanFactory
@@ -1492,6 +1544,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 		else if (containsSingleton(candidateName) || (descriptor instanceof StreamDependencyDescriptor &&
 				((StreamDependencyDescriptor) descriptor).isOrdered())) {
+			//
 			Object beanInstance = descriptor.resolveCandidate(candidateName, requiredType, this);
 			candidates.put(candidateName, (beanInstance instanceof NullBean ? null : beanInstance));
 		}

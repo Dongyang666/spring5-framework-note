@@ -783,7 +783,6 @@ class ConstructorResolver {
 				}
 				try {
 
-
 					//去创建构造函数中的参数bean
 					Object autowiredArgument = resolveAutowiredArgument(
 							methodParam, beanName, autowiredBeanNames, converter, fallback);
@@ -800,6 +799,8 @@ class ConstructorResolver {
 		}
 
 		for (String autowiredBeanName : autowiredBeanNames) {
+			//建立从属关系
+			//在autowiredBeanName的bean 被销毁之前销毁 beanName
 			this.beanFactory.registerDependentBean(autowiredBeanName, beanName);
 			if (logger.isDebugEnabled()) {
 				logger.debug("Autowiring by type from bean name '" + beanName +

@@ -8,6 +8,10 @@ import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 /**
  * @author liudongyang
  */
@@ -19,20 +23,36 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 	private int i =567 ;
 
 
-	@Autowired
-	public SpringBean(Test test) {
-		System.out.println(test);
+	//@Autowired
+	public SpringBean(Map<String,Test> map) {
+		System.out.println(map.get("test1111"));
 		System.out.println("SpringBean构造方法:" + studentService);
 		System.out.println("SpringBean---Test构造方法");
 	}
 
+	//@Autowired
+	public SpringBean(List<ITest> testList) {
+		System.out.println(testList.size());
+		System.out.println(testList.get(0));
+		System.out.println("SpringBean构造方法:" + studentService);
+		System.out.println("SpringBean---Test构造方法");
+	}
 
+	//@Autowired
+	public SpringBean(Optional<Test> optionalTest) {
+		System.out.println(optionalTest.get());
+		System.out.println("SpringBean构造方法:" + studentService);
+		System.out.println("SpringBean---Test构造方法");
+	}
+
+	//@Autowired
 	public SpringBean(){
 		System.out.println("SpringBean---默认构造方法");
 	}
 
-
-	public SpringBean(Test test2,Test test){
+	@Autowired
+	public SpringBean(Test test){
+		System.out.println(test);
 		System.out.println("SpringBean---prototype构造方法");
 	}
 

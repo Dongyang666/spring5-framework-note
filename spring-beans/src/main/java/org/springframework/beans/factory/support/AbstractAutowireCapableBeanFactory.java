@@ -1220,6 +1220,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (ctors != null || mbd.getResolvedAutowireMode() == AUTOWIRE_CONSTRUCTOR ||
 				mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args)) {
 			//这个应该会给构造函数的参数，注入bean（如果不存在则抛出异常）
+			//这个args 一般为空，不知道怎么用不为空
+			//这个方法里面非常丰富需要细细看，已经大致分析了60%左右
+			//除了把个类型转换之外
 			return autowireConstructor(beanName, mbd, ctors, args);
 		}
 
@@ -1381,6 +1384,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected BeanWrapper autowireConstructor(
 			String beanName, RootBeanDefinition mbd, @Nullable Constructor<?>[] ctors, @Nullable Object[] explicitArgs) {
 
+		//创建了一个构造函数解析器，并调用自动装配函数
 		return new ConstructorResolver(this).autowireConstructor(beanName, mbd, ctors, explicitArgs);
 	}
 
