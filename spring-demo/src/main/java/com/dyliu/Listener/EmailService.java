@@ -23,6 +23,7 @@ public class EmailService implements ApplicationEventPublisherAware {
 
 	public void sendEmail(String address,String content){
 		if(blackList.contains(address)){
+			//发布事件，监听这个事件的事件监听器就会调用他的监听函数---BlackEmailSendListener#onApplicationEvent
 			publisher.publishEvent(new BlackEvent(this,address,content));
 			return;
 		}

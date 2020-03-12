@@ -101,6 +101,7 @@ final class PostProcessorRegistrationDelegate {
 			//获取了三次BeanDefinitionRegistryPostProcessor实现这个接口的类
 			//执行了第一次才能吧自己的类扫描到map中去，第一次的时候取出来只有这个类 ConfigurationClassPostProcessor
 			//第二次执行spring自己的并且是优先级最高的
+			//第一次合并bd beanFactory.getBeanNamesForType每次调用这个方法都会合并一下bd
 			String[] postProcessorNames =
 					beanFactory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class, true, false);
 			//遍历获取到的添加到currentRegistryProcessors这个集合中
@@ -131,6 +132,7 @@ final class PostProcessorRegistrationDelegate {
 			//第三遍获取BeanDefinitionRegistryPostProcessor这个接口的实现类
 			//这个地方会重复获取到ConfigurationClassPostProcessor这个类，不过下面有去重操作--
 			//第三遍获取优先类并且执行
+			//这个里面还是会合并bd
 			postProcessorNames = beanFactory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class, true, false);
 			for (String ppName : postProcessorNames) {
 				if (!processedBeans.contains(ppName) && beanFactory.isTypeMatch(ppName, Ordered.class)) {
@@ -189,7 +191,6 @@ final class PostProcessorRegistrationDelegate {
 		// uninitialized to let the bean factory post-processors apply to them!
 		//准备开始执行工厂的后置处理器
 		//获取所有BeanFactoryPostProcessor的类
-
 		String[] postProcessorNames =
 				beanFactory.getBeanNamesForType(BeanFactoryPostProcessor.class, true, false);
 

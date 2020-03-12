@@ -42,6 +42,7 @@ public interface AnnotatedBeanDefinition extends BeanDefinition {
 
 	/**
 	 * Obtain metadata for this bean definition's factory method, if any.
+	 * 	通过@Bean注解标记的方法会被解析到这个属性里面
 	 * @return the factory method metadata, or {@code null} if none
 	 * @since 4.1.1
 	 */

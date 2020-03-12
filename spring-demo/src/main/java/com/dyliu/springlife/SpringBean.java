@@ -1,10 +1,8 @@
 package com.dyliu.springlife;
 
-import com.dyliu.lookup.Prototype;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
@@ -56,10 +54,10 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 		System.out.println("SpringBean---prototype构造方法");
 	}
 
-	@Lookup
+	/*@Lookup
 	public Prototype prototype(){
 		return null;
-	}
+	}*/
 	@Autowired
 	private StudentService studentService;
 

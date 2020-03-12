@@ -437,6 +437,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 		RootBeanDefinition mbdToUse = mbd;
 
+
+
 		// Make sure bean class is actually resolved at this point, and
 		// clone the bean definition in case of a dynamically resolved Class
 		// which cannot be stored in the shared merged bean definition.
@@ -456,6 +458,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					beanName, "Validation of method overrides failed", ex);
 		}
 
+
+
+
 		try {
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
 			//这个会去调用bean的后置处理器干扰spring实例化一个bean。
@@ -471,9 +476,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					"BeanPostProcessor before instantiation of bean failed", ex);
 		}
 
+
+
+
 		try {
 			//创建对象
-			//真实创建对象
+			//整个spring bean的生命周期都在这个里面了
 			Object beanInstance = doCreateBean(beanName, mbdToUse, args);
 			if (logger.isTraceEnabled()) {
 				logger.trace("Finished creating instance of bean '" + beanName + "'");
@@ -489,6 +497,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			throw new BeanCreationException(
 					mbdToUse.getResourceDescription(), beanName, "Unexpected exception during bean creation", ex);
 		}
+
 	}
 
 	/**
@@ -523,6 +532,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			 * 2.通过构造方法自动注入的方式
 			 * 3.通过无参构造方法的方式
 			 */
+			//首先会推断构造方法，然后通过构造方法去创建对象
+			//如果构造方法是有参数类型的则getBean去获取注入的bean
+			//如果是Map List等集合的则需要拿到泛型然后getBean，最后通过convert类型转化器转成集合注入到构造方法中。
+			//AutowiredAnnotationBeanPostProcessor#determineCandidateConstructors
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
 		//得到实例化出来的对象
@@ -536,19 +549,20 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		synchronized (mbd.postProcessingLock) {
 			if (!mbd.postProcessed) {
 				try {
-					//第三次调用后置处理器
-					//通过后置处理器来应用合并后bd---目标
-					//缓存了注入元素信息----更多事情---让程序猿
-					//通过后置后置处理器来应用合并之后的bd
-					//应用bd----吧bd里面的信息拿出来----需要属性
-
-					//合并beanDefinition
+					// 1.这个里面有一个很重要的后置处理器叫AutowiredAnnotationBeanPostProcessor
+					// 会执行这个后置处理器把bean里面的@Autowired @Value @Inject注入的信息存到
+					// bd的externallyManagedConfigMembers这个属性去
+					// 2.还有一个后置处理器叫CommonAnnotationBeanPostProcessor
+					// 会把@Resource EJB和webService的的信息也存到bd的属性去
+					//3.还有个后置处理器叫ApplicationListenerDetector
+					//如果这个bean是ApplicationListener类型的存到后置处理器自身的beanNames这个Map<beanName,isSingleton>集合中去
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
 					throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 							"Post-processing of merged bean definition failed", ex);
 				}
+				//标记下这个bd已经被后置处理器解析过了
 				mbd.postProcessed = true;
 			}
 		}
@@ -556,26 +570,37 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Eagerly cache singletons to be able to resolve circular references
 		// even when triggered by lifecycle interfaces like BeanFactoryAware.
 		//判断是否循环依赖
+		//是不是单例的。是不是支持循环依赖。是不是正在创建中（在第二个getSingleton方法中已经放到当前在创建的集合中了）
 		boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
 				isSingletonCurrentlyInCreation(beanName));
-
-
 
 		if (earlySingletonExposure) {
 			if (logger.isTraceEnabled()) {
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
+			/**
+			 * 需要在填充属性之前完成提前暴露这个bean的工作
+			 * 提前暴露bean其实就是bean一个lambda存到map集合中了
+			 * 假如A、B对象互相依赖
+			 * A对象要先暴露自己（非bean只是对象），因为在填充属性步骤会去创建B对象而B对象走到填充属性这一步又依赖于A对象
+			 * 在获取A的时候由于提前暴露了A对象（不是Bean还没走完流程）则可以获取到然后走完B流程
+			 * 最后回到A的属性填充流程把beanB注入到自己的属性中，同时完成自己的流程（这时候B对象中的A实例也就是一个bean了）
+			 *
+			 */
 			//第四次调用后置处理器，判断是否需要aop
 			//提前暴露一个工厂
+			//第二遍调用getSingleton方法中的singletonFactory.getObject()这个方法其实最后调用这个lambda表示
+			//为什么循环依赖的时候要先给依赖的bean完成AOP呢？？？
+			//AbstractAutoProxyCreator这个后置处理器会生成AOP对象
 			addSingletonFactory(beanName, ()->getEarlyBeanReference(beanName, mbd, bean));
 		}
 
+
+		//接下来要完成初始化工作了（实例化区分开）
 		// Initialize the bean instance.
 		Object exposedObject = bean;
 		try {
-
-
 
 			//填充属性，也就是我们讲的自动注入
 			//里面会完成第五次和第六次的后置处理器调用
@@ -1088,6 +1113,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		for (BeanPostProcessor bp : getBeanPostProcessors()) {
 			if (bp instanceof MergedBeanDefinitionPostProcessor) {
 				MergedBeanDefinitionPostProcessor bdp = (MergedBeanDefinitionPostProcessor) bp;
+				//这里面两个后置处理器会吧这个bean里面注入的其他bean塞到
 				bdp.postProcessMergedBeanDefinition(mbd, beanType, beanName);
 			}
 		}
@@ -1165,25 +1191,30 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					"Bean class isn't public, and non-public access not allowed: " + beanClass.getName());
 		}
 
+		//如果这个Bean实现了Supplier接口则通过这个接口获取实例对象
 		Supplier<?> instanceSupplier = mbd.getInstanceSupplier();
 		if (instanceSupplier != null) {
 			return obtainFromSupplier(instanceSupplier, beanName);
 		}
 
+		//不理解 工厂方法？
 		if (mbd.getFactoryMethodName() != null) {
 			return instantiateUsingFactoryMethod(beanName, mbd, args);
 		}
 
 		// Shortcut when re-creating the same bean...
+		//注释很到位 "重新创建相同Bean的快捷方式"
 		// 一个类可能有多个构造器，所以Spring得根据参数个数、类型确定需要调用的构造器
-		// 在使用构造器创建实例后，Spring会将解析过后确定下来的构造器或工厂方法保存在缓存中，避免再次创建相同bean时再次解析
+		// 在使用构造器创建实例后，Spring会将解析过后确定下来的构造函数和构造函数参数等保存在BeanDefinition中，避免创建相同bean时再次解析
 		//这个标识符是用来标识这个bean的构造器是不是已经被解析过了
-		//这个地方这么写，感觉是为了解决类似于prototype类型的bean每次getBean的都需要解析构造函数。
+		//这个地方这么写，感觉是为了解决相同的bean每次getBean的都需要解析构造函数。
 		boolean resolved = false;
 		//这个标识符是用来标识这个bean是不是要通过构造器进行注入。
 		boolean autowireNecessary = false;
 		if (args == null) {
 			synchronized (mbd.constructorArgumentLock) {
+				//如果这个值不为空，则表明已经解析过构造函数了，在解析完构造函数后给BeanDefinition
+				//的resolvedConstructorOrFactoryMethod属性设置了构造函数对象，并且把
 				if (mbd.resolvedConstructorOrFactoryMethod != null) {
 					resolved = true;
 					autowireNecessary = mbd.constructorArgumentsResolved;
@@ -1201,6 +1232,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				return instantiateBean(beanName, mbd);
 			}
 		}
+
+
 
 		// Candidate constructors for autowiring?
 		//见名知意，通过Bean后置处理器推断构造方法
@@ -1389,6 +1422,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	}
 
 	/**
+	 * 填充属性
 	 * Populate the bean instance in the given BeanWrapper with the property values
 	 * from the bean definition.
 	 * @param beanName the name of the bean
@@ -1411,10 +1445,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Give any InstantiationAwareBeanPostProcessors the opportunity to modify the
 		// state of the bean before properties are set. This can be used, for example,
 		// to support styles of field injection.
-		//如果这个值被改成false，那么就不会去完成属性的自动注入---
-		boolean continueWithPropertyPopulation = true;
-		//判断是否需要完成属性的自动注入，如果不需要就改变continueWithPropertyPolulation = false
-		// 如果程序猿没有扩展spring 那么continueWithPropertyPopulation = true
+
+		//执行bean的实例化后置处理器的后置处理方法postProcessAfterInstantiation
+		//这个后置处理方法可以对bean的实例（对象非bean）进行自己修改，并且可以通过返回值决定是不是需要走自动填充属性
+		//还有bean实例化后置处理器的前置处理器方法postProcessBeforeInstantiation
+		//spring自带的默认都是不处理的直接返回true
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
@@ -1428,7 +1463,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
 
-
+		//拿到自动注入数字
 		int resolvedAutowireMode = mbd.getResolvedAutowireMode();
 		//判断是否需要自动注入
 		if (resolvedAutowireMode == AUTOWIRE_BY_NAME || resolvedAutowireMode == AUTOWIRE_BY_TYPE) {
@@ -1454,6 +1489,18 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 
 			//通过BeanPostProcessor完成自动属性注入
+			//AutowiredAnnotationBeanPostProcessor这个类的后置处理器完成的属性注入
+			//获取一个依赖bean的流程和解决构造参数解决的方法是一样的，
+			//	1.创建一个描述符（描述需要注入的bean的信息）
+			//  2.调用resolveDependency这个方法获取依赖的属性的bean
+			//	3.调用doResolveDependency这个方法获取依赖的bean
+			//	4.对注入的属性进行判断呢，直接进行集合类型的处理（Map,Set，List）（核心还是findAutowireCandidates）
+			//	不同的是最后会使用类型转换器进行转换，并且Map等集合类会用MultiElementDescriptor这个描述符直接返回实例对象
+			//	5.对单纯的Type类型的bean进行获取使用findAutowireCandidates方法
+			//	 这个方法中回去判断描述符类型是啥如果是MultiElementDescriptor会直接创建对象
+			//	 如果是默认的描述符会返回clazz需要通过这个方法的返回值进行对象的创建
+			//  6.最后通过field的set方法把注入的bean注入。
+			//都是这个方法beanFactory.resolveDependency(DependencyDescriptor, beanName, autowiredBeanNames, TypeConverter)
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
@@ -1473,7 +1520,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				}
 			}
 		}
-		//执行完for循环之后  完成属性注入
+
 		if (needsDepCheck) {
 			if (filteredPds == null) {
 				filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
