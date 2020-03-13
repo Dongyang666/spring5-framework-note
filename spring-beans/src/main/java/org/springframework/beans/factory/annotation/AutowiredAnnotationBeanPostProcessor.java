@@ -406,6 +406,8 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 	@Override
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
+		//这个地方一般会直接从缓存中拿出来，因为在之前合并bd的时候就会调用findAutowiringMetadata解析这个
+		//bd加了@Autowired @Value注解缓存到map中去了
 		InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
 		try {
 			metadata.inject(bean, beanName, pvs);
@@ -774,6 +776,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 			}
 			if (arguments != null) {
 				try {
+					//执行这个方法把值传进去
 					ReflectionUtils.makeAccessible(method);
 					method.invoke(bean, arguments);
 				}

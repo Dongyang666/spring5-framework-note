@@ -19,6 +19,13 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 
 	private String aa = "123";
 	private int i =567 ;
+	@Autowired
+	private ApplicationContext context;
+
+	@Autowired
+	private void setStudentService(StudentService studentService){
+		this.studentService = studentService;
+	}
 
 
 	//@Autowired
@@ -58,7 +65,6 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 	public Prototype prototype(){
 		return null;
 	}*/
-	@Autowired
 	private StudentService studentService;
 
 	@Override
@@ -87,6 +93,9 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 		System.out.println("setBeanName");
 	}
 
+	public void test(){
+		System.out.println(context);
+	}
 	public void initMethod() {
 		System.out.println("initMethod");
 	}

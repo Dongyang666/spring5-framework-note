@@ -551,7 +551,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				try {
 					// 1.这个里面有一个很重要的后置处理器叫AutowiredAnnotationBeanPostProcessor
 					// 会执行这个后置处理器把bean里面的@Autowired @Value @Inject注入的信息存到
-					// bd的externallyManagedConfigMembers这个属性去
+					// bd的externallyManagedConfigMembers这个属性去，不知道存进去干啥？？
+					//还有一个操作就是调用这个方法findAutowiringMetadata
+					//调用一遍之后会把@Autowired @Value的Method和Field缓存到injectionMetadataCache（Map）中
+					//缓存这个map有用后面populateBean方法会从缓存中拿出来进行getBean操作注入到字段或者执行方法。
+
 					// 2.还有一个后置处理器叫CommonAnnotationBeanPostProcessor
 					// 会把@Resource EJB和webService的的信息也存到bd的属性去
 					//3.还有个后置处理器叫ApplicationListenerDetector
@@ -603,15 +607,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		try {
 
 			//填充属性，也就是我们讲的自动注入
-			//里面会完成第五次和第六次的后置处理器调用
+			//具体步骤注释在方法里面很关键的一个方法
 			populateBean(beanName, mbd, instanceWrapper);
 
-
 			//初始化spring
-
 			//里面会完成第七次和第八次后置处理器调用
-
-
 			//会变成cglib代理对象
 			//aop实现
 			exposedObject = initializeBean(beanName, exposedObject, mbd);

@@ -1,4 +1,5 @@
 import com.dyliu.config.AppConfig;
+import com.dyliu.springlife.SpringBean;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
@@ -10,6 +11,7 @@ public class Main {
 		//激活pro环境.
 		//ac.getEnvironment().setActiveProfiles("dev");
 		ac.register(AppConfig.class);
+
 		ac.refresh();
 		/*ac.getBean(PropertyDemo.class).printEnv();*/
 		//ac.getBean(TestStaticAware.class).test();
