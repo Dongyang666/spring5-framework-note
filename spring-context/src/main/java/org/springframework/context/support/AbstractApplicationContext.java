@@ -674,7 +674,10 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// BeanFactory interface not registered as resolvable type in a plain factory.
 		// MessageSource registered (and found for autowiring) as a bean.
-		//以下接口，允许自动装配,第一个参数是自动装配的类型，，第二个字段是自动装配的值
+		//把spring内置的对象注入放到resolvableDependencies这个map中去
+		//后面如果普通bean需要注入这四个bean的时候就可以直接get了
+		//DefaultListableBeanFactory.findAutowireCandidates
+		//这个方法解决依赖的时候会从resolvableDependencies这个map中拿
 		beanFactory.registerResolvableDependency(BeanFactory.class, beanFactory);
 		beanFactory.registerResolvableDependency(ResourceLoader.class, this);
 		beanFactory.registerResolvableDependency(ApplicationEventPublisher.class, this);

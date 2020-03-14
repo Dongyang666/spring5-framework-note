@@ -1,5 +1,5 @@
-import com.dyliu.config.AppConfig;
-import com.dyliu.springlife.SpringBean;
+import com.dyliu.aop.A;
+import com.dyliu.aop.AopAppConfig;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
@@ -10,9 +10,10 @@ public class Main {
 		AnnotationConfigApplicationContext ac = new AnnotationConfigApplicationContext();
 		//激活pro环境.
 		//ac.getEnvironment().setActiveProfiles("dev");
-		ac.register(AppConfig.class);
+		ac.register(AopAppConfig.class);
 
 		ac.refresh();
+		ac.getBean(A.class).testPublic();
 		/*ac.getBean(PropertyDemo.class).printEnv();*/
 		//ac.getBean(TestStaticAware.class).test();
 		//System.out.println(ac.getBean(OtherClass.class));

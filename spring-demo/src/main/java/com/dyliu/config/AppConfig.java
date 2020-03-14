@@ -2,6 +2,7 @@ package com.dyliu.config;
 
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
 /**
  * @author liudongyang
@@ -11,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
  */
 //@EnableJdkProxy
 @Configuration
+@EnableAspectJAutoProxy
 //@ComponentScan(value = {"com.dyliu.config","com.dyliu.springlife","com.dyliu.profile","com.dyliu.lookup"})
 @ComponentScan(value = {"com.dyliu.springlife"})
 //@MyMapperScanner("com.dyliu.importBeanDefinitionRegistrar")

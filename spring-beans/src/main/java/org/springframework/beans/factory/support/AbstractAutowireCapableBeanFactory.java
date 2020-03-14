@@ -596,7 +596,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			//提前暴露一个工厂
 			//第二遍调用getSingleton方法中的singletonFactory.getObject()这个方法其实最后调用这个lambda表示
 			//为什么循环依赖的时候要先给依赖的bean完成AOP呢？？？
-			//AbstractAutoProxyCreator这个后置处理器会生成AOP对象
+			//传给map集合的是一个代理对象能保证
 			addSingletonFactory(beanName, ()->getEarlyBeanReference(beanName, mbd, bean));
 		}
 
@@ -610,10 +610,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			//具体步骤注释在方法里面很关键的一个方法
 			populateBean(beanName, mbd, instanceWrapper);
 
-			//初始化spring
-			//里面会完成第七次和第八次后置处理器调用
-			//会变成cglib代理对象
-			//aop实现
+			/**
+			 * 1、注入各种Aware对象，详细方法中有注释
+			 * 2、调用初始化方法@PostConstruct方法和实现了InitiazingBean接口的afterPropertiesSet方法
+			 * 3、把实现了ApplicationListener接口的bean添加到ac的集合中去
+			 * 4、这个后置处理器AbstractAutoProxyCreator#postProcessAfterInitialization完成AOP
+			 */
 			exposedObject = initializeBean(beanName, exposedObject, mbd);
 		}
 		catch (Throwable ex) {
@@ -626,7 +628,26 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 		}
 
+		/**
+		 * 设计非常巧妙
+		 * 这个地方非常的秀
+		 * 判断是不是有早期引用，如果是则从getSingleton里面去获取对象，
+		 * 在循环依赖之中A-B互相依赖，A创建的时候会在populateBean(填充属性)之前，把一个lambda表达式getEarlyBeanReference
+		 * 放到singletonFactories这个Map中去，然后填充属性的时候又要去创建B，而B在属性填充的时候
+		 * 又要注入A对象所以调用第一遍的getSingleton这个方法去获取并且从singletonFactories中拿到了一个lambda表达式
+		 * 然后执行这个lambda表达式会获取到代理对象$$A(lambda中会通过后置处理器吧对象代理)并且把这个$$A对象存到三级缓存里面
+		 * earlySingletonObjects这个Map里面
+		 * 然后回到B的初始化流程走B走到这个地方的时候又会去调用getSingleton并且传入的是false（只从单例池和三级缓存中那bean对象）
+		 * 这个时候拿到的空对象，因为getSingleton(B)没有被调用过所以只有二级缓存里面有创建B的lambda而三级缓存里面是没有的
+		 * 正好B也不需要在这个地方代理他已经在initializeBean方法中生成了$$B对象了，然后走完B的流程
+		 * 会回到A的populateBean方法并且顺利注入已经走完整个bean周期的B
+		 * A的创建流程走到这个地方会去调用getSingleton这个方法并且传入false（只从三级缓存里面拿），这个时候三级缓存里面
+		 * 是有A对象的代理对象的拿到注入到B对象里面的$$A对象然后返回。
+		 */
 		if (earlySingletonExposure) {
+			//很秀注意这个第二个参数是false，他只会从三级缓存里面拿一次bean对象，啥意思呢
+			//就是说这个方法必须被调用过一次第二次调用的时候才能拿到对象
+			//不太好理解就是
 			Object earlySingletonReference = getSingleton(beanName, false);
 			if (earlySingletonReference != null) {
 				if (exposedObject == bean) {
@@ -1868,21 +1889,40 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}, getAccessControlContext());
 		}
 		else {
-
-
-			//实现aware
+			//实现bean的三个Aware
+			//BeanNameAware
+			//BeanClassLoaderAware
+			//BeanFactoryAware
 			invokeAwareMethods(beanName, bean);
 		}
 
 		Object wrappedBean = bean;
 		if (mbd == null || !mbd.isSynthetic()) {
 
-			//执行spring当中的内置处理器-------xxxxxpostProcessor-----@PostC
+			//
+			/**
+			 * 第一个后置处理器ApplicationContextAwareProcessor会把下面的Aware接口全实现了注入对应的spring内置bean
+			 * EnvironmentAware
+			 * EmbeddedValueResolverAware
+			 * ResourceLoaderAware
+			 * ApplicationEventPublisherAware
+			 * MessageSourceAware
+			 * ApplicationContextAware（如果是直接@AutoWired注入ac对象则在@Autowired阶段处理的）
+			 */
+			/**
+			 * 第二个后置处理器ImportAwareBeanPostProcessor会处理ImportAware接口
+			 */
+			/**
+			 * 第三个后置处理器InitDestroyAnnotationBeanPostProcessor，处理Lifecycle Callbacks
+			 * 拿到有注解了@PostConstruct注解和@PreDestroy注解存入到缓存中
+			 * 注意这个处理器只会只会执行@PostConstruct注解的方法
+			 */
+			//后置处理器执行-初始化前置处理
 			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
 		}
 
 		try {
-			//执行InitializingBean    初始化xml    init-method="xxxx"
+			//执行实现了InitializingBean接口的初始化方法afterPropertiesSet
 			invokeInitMethods(beanName, wrappedBean, mbd);
 		}
 		catch (Throwable ex) {
@@ -1891,7 +1931,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					beanName, "Invocation of init method failed", ex);
 		}
 		if (mbd == null || !mbd.isSynthetic()) {
-			//执行after方法
+			//后置处理器执行-初始化后置处理
+			//ApplicationListenerDetector此后置处理器用来处理实现了ApplicationListener接口的bean
+			//applicationContext.addApplicationListener此方法吧listener接口的类添加到ac中
+			//AbstractAutoProxyCreator#postProcessAfterInitialization这个方法完成AOP
 			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
 		}
 

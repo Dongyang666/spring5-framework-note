@@ -4,6 +4,8 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -14,12 +16,16 @@ import java.util.Optional;
  * @author liudongyang
  */
 @Component
-public class SpringBean implements InitializingBean, DisposableBean, BeanNameAware, BeanFactoryAware, BeanClassLoaderAware{
+public class SpringBean implements InitializingBean, DisposableBean, BeanNameAware, BeanFactoryAware, BeanClassLoaderAware, ApplicationListener<ContextClosedEvent> {
 	public static ApplicationContext applicationContext = null;
 
 	private String aa = "123";
 	private int i =567 ;
 	@Autowired
+	/**
+	 * 这个方法中会判断注入的是不是spring自己的bean 然后注入
+	 * DefaultListableBeanFactory#findAutowireCandidates
+	 */
 	private ApplicationContext context;
 
 	@Autowired
@@ -104,4 +110,8 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 		System.out.println("destroyMethod");
 	}
 
+	@Override
+	public void onApplicationEvent(ContextClosedEvent event) {
+
+	}
 }

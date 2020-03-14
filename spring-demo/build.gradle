@@ -9,8 +9,12 @@ sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
+    flatDir {dirs 'lib'}
 }
+
+
 
 dependencies {
     compile(project(":spring-context"))
+    compile files('lib/aspectjweaver-1.9.4.jar')
 }
