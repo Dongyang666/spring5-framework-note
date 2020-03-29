@@ -16,16 +16,16 @@
 
 package org.springframework.aop.aspectj.annotation;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Pattern;
-
 import org.springframework.aop.Advisor;
 import org.springframework.aop.aspectj.autoproxy.AspectJAwareAdvisorAutoProxyCreator;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * {@link AspectJAwareAdvisorAutoProxyCreator} subclass that processes all AspectJ
@@ -89,9 +89,13 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 	@Override
 	protected List<Advisor> findCandidateAdvisors() {
 		// Add all the Spring advisors found according to superclass rules.
+		//调用父类的findCandidateAdvisors这个其实是解析了实现了Advisor接口的类
+		//另一种实现AOP的方式就是通过接口实现，获取通过这种途径注册advisor
 		List<Advisor> advisors = super.findCandidateAdvisors();
+
 		// Build Advisors for all AspectJ aspects in the bean factory.
 		if (this.aspectJAdvisorsBuilder != null) {
+			//这个是正常的AOP逻辑获取Advisor
 			advisors.addAll(this.aspectJAdvisorsBuilder.buildAspectJAdvisors());
 		}
 		return advisors;
@@ -107,6 +111,22 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 		// proxied by that interface and fail at runtime as the advice method is not
 		// defined on the interface. We could potentially relax the restriction about
 		// not advising aspects in the future.
+		//
+		/**
+		 * 首先判断这个bean是不是实现了Advice接口（通知，相当于@Before、@After、@Around、@Throw）
+		 * MethodBeforeAdvice 前置通知
+		 * AfterReturningAdvice 后置通知
+		 * MethodInterceptor 环绕通知
+		 * ThrowsAdvice异常通知
+		 * 2.判断是不是实现了Pointcut接口（切点，相当于@Pointcut）
+		 * NameMatchMethodPointcut方法名匹配的.
+		 * 3.判断是不是实现了PointcutAdvisor接口（绑定Advice接口和PointCut）
+		 * 必须要把切点和通知绑定在一起，切点是定义那些方法是需要被设置通知的，而通知就是具体要怎么通知以及通知什么，
+		 * 所以通过PointcutAdvisor接口中提供了两个方法getPointcut和getAdvice把切点和切面联系起来。
+		 * 4.AopInfrastructureBean标记bean不会被代理
+		 *
+		 * 或者如果是实现了Aspect注解
+		 */
 		return (super.isInfrastructureClass(beanClass) ||
 				(this.aspectJAdvisorFactory != null && this.aspectJAdvisorFactory.isAspect(beanClass)));
 	}

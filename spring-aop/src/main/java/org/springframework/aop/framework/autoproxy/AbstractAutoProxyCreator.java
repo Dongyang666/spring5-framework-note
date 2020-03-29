@@ -242,7 +242,14 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			if (this.advisedBeans.containsKey(cacheKey)) {
 				return null;
 			}
+			//这个地方的shouldSkip需要注意会调用AspectJAwareAdvisorAutoProxyCreator这个类中的
+			//因为注入的类是AnnotationAwareAspectJAutoProxyCreator
+			//而这个类没有shouldSkip只能找他的父类AspectJAwareAdvisorAutoProxyCreator
+			//然后调用的是他父类的方法而不是AbstractAutoProxyCreator当前这个类的这个方法
+			//第一个判断是不是通过接口类型实现的AOP
 			if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
+				//把符合跳过条件的clazz设置为不需要被执行通知（@Before、@After等）
+				//也就是说这个class不符合aop代理
 				this.advisedBeans.put(cacheKey, Boolean.FALSE);
 				return null;
 			}
@@ -329,15 +336,22 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) {
 			return bean;
 		}
+		//如果被设置为false就代表不需要代理
 		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
 			return bean;
 		}
+		/**
+		 * 如果是基础设施类（PointCut、Advice、Advisor等接口实现类）,或者应该跳过的类
+		 * 则不代理直接返回bean
+		 *
+		 */
 		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
 			this.advisedBeans.put(cacheKey, Boolean.FALSE);
 			return bean;
 		}
 
 		// Create proxy if we have advice.
+		//为当前的bean查找适合的通知器
 		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
 		//需要代理产生代理对象
 		if (specificInterceptors != DO_NOT_PROXY) {
@@ -347,7 +361,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			this.proxyTypes.put(cacheKey, proxy.getClass());
 			return proxy;
 		}
-
+		//已经代理过了直接设置为标记false
 		this.advisedBeans.put(cacheKey, Boolean.FALSE);
 		return bean;
 	}
@@ -365,6 +379,10 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 * @see #shouldSkip
 	 */
 	protected boolean isInfrastructureClass(Class<?> beanClass) {
+		//什么叫基础结构类？？
+		//实现了Advice Pointcut Advisor  AopInfrastructureBean接口
+		//这个应该是可以通过接口实现AOP的处理逻辑
+		//或者通过注解@Aspject
 		boolean retVal = Advice.class.isAssignableFrom(beanClass) ||
 				Pointcut.class.isAssignableFrom(beanClass) ||
 				Advisor.class.isAssignableFrom(beanClass) ||
@@ -442,20 +460,30 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		}
 
 		ProxyFactory proxyFactory = new ProxyFactory();
+		//获取当前类中的相关属性
 		proxyFactory.copyFrom(this);
-
+		/*
+		 * 默认配置下，或用户显式配置 proxy-target-class = "false" 时，
+		 * 这里的 proxyFactory.isProxyTargetClass() 也为 false
+		 */
 		if (!proxyFactory.isProxyTargetClass()) {
 			if (shouldProxyTargetClass(beanClass, beanName)) {
 				proxyFactory.setProxyTargetClass(true);
 			}
 			else {
+				/*
+				 * 检测 beanClass 是否实现了接口，若未实现，则将
+				 * proxyFactory 的成员变量 proxyTargetClass 设为 true
+				 */
 				evaluateProxyInterfaces(beanClass, proxyFactory);
 			}
 		}
 
+		//封装Advisor并加入到ProxyFactory
 		Advisor[] advisors = buildAdvisors(beanName, specificInterceptors);
 		proxyFactory.addAdvisors(advisors);
 		proxyFactory.setTargetSource(targetSource);
+		//定制代理？？
 		customizeProxyFactory(proxyFactory);
 
 		proxyFactory.setFrozen(this.freezeProxy);

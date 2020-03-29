@@ -16,15 +16,14 @@
 
 package org.springframework.aop.framework.adapter;
 
+import org.aopalliance.aop.Advice;
+import org.aopalliance.intercept.MethodInterceptor;
+import org.springframework.aop.Advisor;
+import org.springframework.aop.support.DefaultPointcutAdvisor;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.aopalliance.aop.Advice;
-import org.aopalliance.intercept.MethodInterceptor;
-
-import org.springframework.aop.Advisor;
-import org.springframework.aop.support.DefaultPointcutAdvisor;
 
 /**
  * Default implementation of the {@link AdvisorAdapterRegistry} interface.
@@ -79,9 +78,23 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 	public MethodInterceptor[] getInterceptors(Advisor advisor) throws UnknownAdviceTypeException {
 		List<MethodInterceptor> interceptors = new ArrayList<>(3);
 		Advice advice = advisor.getAdvice();
+		/*
+		 * 若 advice 是 MethodInterceptor 类型的，直接添加到 interceptors 中即可。
+		 * 比如 AspectJAfterAdvice 就实现了 MethodInterceptor 接口
+		 */
 		if (advice instanceof MethodInterceptor) {
 			interceptors.add((MethodInterceptor) advice);
 		}
+
+		/*
+		 * 对于 AspectJMethodBeforeAdvice 等类型的通知，由于没有实现 MethodInterceptor
+		 * 接口，所以这里需要通过适配器进行转换
+		 * 适配器会把before afterReturn throws转成拦截求
+		 */
+		//这个地方先把所有适配器加入到adapters中
+		//然后遍历这个适配器列表，其中适配器里面定义两个方法一个是转换方法
+		//一个呢是是不是支持当前的advice，和之前@Configuration处理的时候isMath如出一辙
+		//记住这中设计，虽然不知道叫啥
 		for (AdvisorAdapter adapter : this.adapters) {
 			if (adapter.supportsAdvice(advice)) {
 				interceptors.add(adapter.getInterceptor(advisor));

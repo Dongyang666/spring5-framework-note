@@ -495,12 +495,10 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			prepareRefresh();
 
 			/**
-			 * 返回一个Factory 为什么返回一个工厂
-			 * 因为要对工厂进行初始化。
+			 * 执行完这行代码之后ApplicationContext就拥有了BeanFactory所有的功能。
 			 */
 			//DefaultListableBeanFactory
 			// Tell the subclass to refresh the internal bean factory.
-			//和主流程关系也不大，最终获得了DefaultListableBeanFactory，
 			// DefaultListableBeanFactory实现了ConfigurableListableBeanFactory
 			// Tell the subclass to refresh the internal bean factory.
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
@@ -513,8 +511,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			prepareBeanFactory(beanFactory);
 
 			try {
-				//这个方法在当前版本的spring是没有的代码
-				//后期可能扩展
+				//空方法留给程序猿进行扩展的
+				//bean工厂的前置处理器群
 				// Allows post-processing of the bean factory in context subclasses.
 				postProcessBeanFactory(beanFactory);
 
@@ -531,18 +529,22 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				//3、再次执行bean工厂后置处理器，完成对@Configuration类的cglib代理
 				invokeBeanFactoryPostProcessors(beanFactory);
 				/**
-				 * 把beanFactory的后置处理器add到beanPostProcessors这个集合中
+				 *
+				 * 把所有在beanDefinitionMap中的后置处理器用过getBean获取到实例，
+				 * 按照priorityOrdered、Order、None、MergedBeanDefinitionPostProcessor
+				 * ApplicationListenerDetector这个顺序加到beanPostProcessors这个集合中
 				 *
 				 */
 				// Register bean processors that intercept bean creation.
 				registerBeanPostProcessors(beanFactory);
 
 				// Initialize message source for this context.
+				//初始化MessageSource不知道干啥的
 				initMessageSource();
 
 				//初始化应用事件广播器
 				//如果程序猿不自己注入则使用默认的SimpleApplicationEventMulticaster
-				//这个东西可能是来完成spring时间监听的？？？
+				//这个东西可能是来处理spring事件监听的
 				// Initialize event multicaster for this context.
 				initApplicationEventMulticaster();
 
@@ -605,10 +607,13 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		}
 
 		// Initialize any placeholder property sources in the context environment.
+		//留给子类做扩展使用，spring自己没处理，
+		//程序猿可以自己扩展
 		initPropertySources();
 
 		// Validate that all properties marked as required are resolvable:
 		// see ConfigurablePropertyResolver#setRequiredProperties
+		//验证需要的属性文件是不是已经放入到环境中了
 		getEnvironment().validateRequiredProperties();
 
 		// Store pre-refresh ApplicationListeners...
@@ -683,6 +688,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		beanFactory.registerResolvableDependency(ApplicationEventPublisher.class, this);
 		beanFactory.registerResolvableDependency(ApplicationContext.class, this);
 
+		//添加解决Listener的后置处理器
 		// Register early post-processor for detecting inner beans as ApplicationListeners.
 		beanFactory.addBeanPostProcessor(new ApplicationListenerDetector(this));
 

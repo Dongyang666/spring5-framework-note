@@ -205,151 +205,25 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		// Eagerly check singleton cache for manually registered singletons.
 
-		//从容器中获取
 		/**
-		 * 注意这是第一次调用getSingleton方法，下面spring还会调用一次
-		 * 但是两次调用的不是同一个方法；属于方法重载
-		 * 第一次 getSingleton(beanName) 也是循环依赖最重要的方法
-		 * 关于getSingleton(beanName)具体代码分析可以参考笔者后面的分析
-		 * 这里给出这个方法的总结
-		 * 首先spring会去单例池去根据名字获取这个bean，单例池就是一个map
-		 * 如果对象被创建了则直接从map中拿出来并且返回
-		 * 但是问题来了，为什么spring在创建一个bean的时候会去获取一次呢？
-		 * 因为作为代码的书写者肯定知道这个bean这个时候没有创建？为什么需要get一次呢？
-		 * 关于这个问题其实原因比较复杂，需要读者对spring源码设计比较精通
-		 * 笔者不准备来针对这个原因大书特书，稍微解释一下吧
-		 * 我们可以分析doGetBean这个方法，顾名思义其实是用来获取bean的
-		 * 为什么创建bean会调用这个doGetBean方法呢？难道是因为spring作者疏忽，获取乱起名字
-		 * 显然不是，spring的源码以其书写优秀、命名优秀而著名，那么怎么解释这个方法呢？
-		 * 其实很简单doGetBean这个方法不仅仅在创建bean的时候会被调用，在getBean的时候也会调用
-		 * 他是创建bean和getBean通用的方法。但是这只是解释了这个方法的名字意义
-		 * 并么有解释这个方法为什么会在创建bean的时候调用
-		 * 笔者前面已经说过原因很复杂，和本文有关的就是因为循环引用
-		 * 由于循环引用需要在创建bean的过程中去获取被引用的那个类
-		 * 而被引用的这个类如果没有创建，则会调用createBean来创建这个bean
-		 * 在创建这个被引用的bean的过程中会判断这个bean的对象有没有实例化
-		 * bean的对象？什么意思呢？
-		 * 为了方便阅读，请读者一定记住两个概念；什么是bean，什么是对象
-		 * 笔者以为一个对象和bean是有区别的
-		 * 对象：只要类被实例化就可以称为对象
-		 * bean：首先得是一个对象，然后这个对象需要经历一系列的bean生命周期
-		 * 最后把这个对象put到单例池才能算一个bean
-		 * 读者千万注意，笔者下文中如果写到bean和写到对象不是随意写的
-		 * 是和这里的解释有关系的；重点一定要注意；一定；一定；
-		 * 简而言之就是spring先new一个对象，继而对这个对象进行生命周期回调
-		 * 接着对这个对象进行属性填充，也是大家说的自动注入
-		 * 然后在进行AOP判断等等；这一些操作简称----spring生命周期
-		 * 所以一个bean是一个经历了spring周期的对象，和一个对象有区别
-		 * 再回到前面说的循环引用，首先spring扫描到一个需要被实例化的类A
-		 * 于是spring就去创建A；A=new A-a;new A的过程会调用getBean("a"))；
-		 * 所谓的getBean方法--核心也就是笔者现在写注释的这个getSingleton(beanName)
-		 * 这个时候get出来肯定为空？为什么是空呢？我写这么多注释就是为了解释这个问题?
-		 * 可能有的读者会认为getBean就是去容器中获取，所以肯定为空，其实不然，接着往下看
-		 * 如果getA等于空；spring就会实例化A；也就是上面的new A
-		 * 但是在实例化A的时候会再次调用一下
-		 * getSingleton(String beanName, ObjectFactory<?> singletonFactory)
-		 * 笔者上面说过现在写的注释给getSingleton(beanName)
-		 * 也即是第一次调用getSingleton(beanName)
-		 * 实例化一共会调用两次getSingleton方法；但是是重载
-		 * 第二次调用getSingleton方法的时候spring会在一个set集合当中记录一下这个类正在被创建
-		 * 这个一定要记住，在调用完成第一次getSingleton完成之后
-		 * spring判读这个类没有创建，然后调用第二次getSingleton
-		 * 在第二次getSingleton里面记录了一下自己已经开始实例化这个类
-		 * 这是循环依赖做的最牛逼的地方，两次getSingleton的调用
-		 * 也是回答面试时候关于循环依赖必须要回答道的地方；
-		 * 需要说明的spring实例化一个对象底层用的是反射；
-		 * spring实例化一个对象的过程非常复杂，需要推断构造方法等等；
-		 * 这里笔者先不讨论这个过程，以后有机会更新一下
-		 * 读者可以理解spring直接通过new关键字来实例化一个对象
-		 * 但是这个时候对象a仅仅是一个对象，还不是一个完整的bean
-		 * 接着让这个对象去完成spring的bean的生命周期
-		 * 过程中spring会判断容器是否允许循环引用，判断循环引用的代码笔者下面会分析
-		 * 前面说过spring默认是支持循环引用的，笔者后面解析这个判断的源码也是spring默认支持循环引用的证据
-		 * 如果允许循环依赖，spring会把这个对象(还不是bean)临时存起来，放到一个map当中
-		 * 注意这个map和单例池是两个map，在spring源码中单例池的map叫做 singletonObjects
-		 * 而这个存放临时对象的map叫做singletonFactories
-		 * 当然spring还有一个存放临时对象的map叫做earlySingletonObjects
-		 * 所以一共是三个map，有些博客或者书籍人也叫做三级缓存
-		 * 为什么需要三个map呢？先来了解这三个map到底都缓存了什么
-		 * 第一个map singletonObjects 存放的单例的bean
-		 * 第二个map singletonFactories 存放的临时对象(没有完整springBean生命周期的对象)
-		 * 第三个map earlySingletonObjects 存放的临时对象(没有完整springBean生命周期的对象)
-		 * 笔者为了让大家不懵逼这里吧第二个和第三个map功能写成了一模一样
-		 * 其实第二个和第三个map会有不一样的地方，但这里不方便展开讲，下文会分析
-		 * 读者姑且认为这两个map是一样的
-		 * 第一个map主要为了直接缓存创建好的bean；方便程序员去getBean；很好理解
-		 * 第二个和第三个主要为了循环引用；为什么为了方便循环引用，接着往下看
-		 * 把对象a缓存到第二个map之后，会接着完善生命周期；
-		 * 当然spring bean的生命周期很有很多步骤；本文先不详细讨论；
-		 * 后面的博客笔者再更新；
-		 * 当进行到对象a的属性填充的这一周期的时候，发觉a依赖了一个B类
-		 * 所以spring就会去判断这个B类到底有没有bean在容器当中
-		 * 这里的判断就是从第一个map即单例池当中去拿一个bean
-		 * 后面我会通过源码来证明是从第一个map中拿一个bean的
-		 * 假设没有，那么spring会先去调用createBean创建这个bean
-		 * 于是又回到和创建A一样的流程，在创建B的时候同样也会去getBean("B")；
-		 * getBean核心也就是笔者现在写注释的这个getSingleton(beanName)方法
-		 * 下面我重申一下：因为是重点
-		 * 这个时候get出来肯定为空？为什么是空呢？我写这么多注释就是为了解释这个问题?
-		 * 可能有的读者会认为getBean就是去容器中获取；
-		 * 所以肯定为空，其实不然，接着往下看；
-		 * 第一次调用完getSingleton完成之后会调用第二次getSingleton
-		 * 第二次调用getSingleton同样会在set集合当中去记录B正在被创建
-		 * 请笔者记住这个时候 set集合至少有两个记录了 A和B；
-		 * 如果为空就 b=new B()；创建一个b对象；
-		 * 再次说明一下关于实例化一个对象，spring做的很复杂，下次讨论
-		 * 创建完B的对象之后，接着完善B的生命周期
-		 * 同样也会判断是否允许循环依赖，如果允许则把对象b存到第二个map当中；
-		 * 提醒一下笔者这个时候第二个map当中至少有两个对象了，a和b
-		 * 接着继续生命周期；当进行到b对象的属性填充的时候发觉b需要依赖A
-		 * 于是就去容器看看A有没有创建，说白了就是从第一个map当中去找a
-		 * 有人会说不上A在前面创建了a嘛？注意那只是个对象，不是bean;
-		 * 还不在第一个map当中 对所以b判定A没有创建，于是就是去创建A；
-		 * 那么又再次回到了原点了，创建A的过程中；首先调用getBean("a")
-		 * 上文说到getBean("a")的核心就是 getSingleton(beanName)
-		 * 上文也说了get出来a==null；但是这次却不等于空了
-		 * 这次能拿出一个a对象；注意是对象不是bean
-		 * 为什么两次不同？原因在于getSingleton(beanName)的源码
-		 * getSingleton(beanName)首先从第一个map当中获取bean
-		 * 这里就是获取a；但是获取不到；然后判断a是不是等于空
-		 * 如果等于空则在判断a是不是正在创建？什么叫做正在创建？
-		 * 就是判断a那个set集合当中有没有记录A；
-		 * 如果这个集合当中包含了A则直接把a对象从第二个map当中get出来并且返回
-		 * 所以这一次就不等于空了，于是B就可以自动注入这个a对象了
-		 * 这个时候a还只是对象，a这个对象里面依赖的B还没有注入
-		 * 当b对象注入完成a之后，把B的周期走完，存到容器当中
-		 * 存完之后继续返回，返回到a注入b哪里？
-		 * 因为b的创建时因为a需要注入b；于是去get b
-		 * 当b创建完成一个bean之后，返回b(b已经是一个bean了)
-		 * 需要说明的b是一个bean意味着b已经注入完成了a；这点上面已经说明了
-		 * 由于返回了一个b，故而a也能注入b了；
-		 * 接着a对象继续完成生命周期，当走完之后a也在容器中了
-		 * 至此循环依赖搞定
-		 * 需要说明一下上文提到的正在创建这种说法并没有官方支持
-		 * 是笔者自己的认为；各位读者可以自行给他取名字
-		 * 笔者是因为存放那些记录的set集合的名字叫做singletonsCurrentlyInCreation
-		 * 顾名思义，当前正在创建的单例对象。。。。。
-		 * 还有上文提到的对象和bean的概念；也没有官方支持
-		 * 也是笔者为了让读者更好的理解spring源码而提出的个人概念
-		 * 但是如果你觉得这种方法确实能让你更好的理解spring源码
-		 * 那么请姑且相信笔者对spring源码的理解，假设10个人相信就会有100个人相信
-		 * 继而会有更多人相信，就会成为官方说法，哈哈。
-		 * 以上是循环依赖的整个过程，其中getSingleton(beanName)
-		 * 这个方法的存在至关重要
-		 * 最后说明一下getSingleton(beanName)的源码分析，下文会分析
-		 **/
+		 *
+		 * 这个方法是个空壳方法调用的是getSingleton(String beanName, boolean allowEarlyReference)
+		 * 并且allowEarlyReference这个属性传入的是true
+		 * 会从三个map中去尝试获取bean
+		 * singletonObjects（一级缓存，单例池,存储的都是经过了整个spring周期的bean）
+		 * earlySingletonObjects（三级缓存，把从singletonFactories中获取的bean缓存一下，非常重要涉及循环依赖
+		 * ，这个里面存储的是经过了AOP过程的bean，不过还没走aop后面的流程）
+		 * singletonFactories（二级缓存，里面存的一个lambada表达式（这个表达式会生成判断并生成AOP对象））
+		 * 首先会从一级缓存获取如果获取不到，会从三级缓存里面拿一次拿不到，
+		 * 并且allowEarlyReference为true才从二级缓存里面拿一下。
+		 *
+		 */
 		Object sharedInstance = getSingleton(beanName);
 
 		/**
-		 * 如果sharedInstance不等于空直接返回
-		 * 当然这里没有直接返回而是调用了getObjectForBeanInstance
-		 * 关于这方法以后解释，读者可以认为这里可以理解为
-		 * bean =sharedInstance; 然后方法最下面会返回bean
-		 * 什么时候不等于空？
-		 * 再容器初始化完成之后
-		 * 程序员直接调用getbean的时候不等于空
-		 * 什么时候等于空？
-		 * 上文已经解释过了，创建对象的时候调用就会等于空
+		 *
+		 * 从缓存里面出来的bean都需要走这一步，检测bean的正确性
+		 * 检查当前bean是不是一个FactoryBean，如果是需要调用这个bean的getObject方法返回
 		 */
 		if (sharedInstance != null && args == null) {
 			if (logger.isTraceEnabled()) {
@@ -361,6 +235,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					logger.trace("Returning cached instance of singleton bean '" + beanName + "'");
 				}
 			}
+			//从缓存出来的bean需要走走一步
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
 
@@ -506,6 +381,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 
 		// Check if required type matches the type of the actual bean instance.
+		//
 		if (requiredType != null && !requiredType.isInstance(bean)) {
 			try {
 				T convertedBean = getTypeConverter().convertIfNecessary(bean, requiredType);
@@ -1363,6 +1239,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		if (!this.propertyEditorRegistrars.isEmpty()) {
 			for (PropertyEditorRegistrar registrar : this.propertyEditorRegistrars) {
 				try {
+					//注册用户自己的属性编辑器
 					registrar.registerCustomEditors(registry);
 				}
 				catch (BeanCreationException ex) {
@@ -1924,6 +1801,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
 
 		// Don't let calling code try to dereference the factory if the bean isn't a factory.
+		//如果当前的beanName是以&符号开头的，则证明是factoryBean
+		//以&开头证明用户是想要FactoryBean对象而不是getObject的实例
 		if (BeanFactoryUtils.isFactoryDereference(name)) {
 			if (beanInstance instanceof NullBean) {
 				return beanInstance;
@@ -1934,21 +1813,26 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			if (mbd != null) {
 				mbd.isFactoryBean = true;
 			}
+			//直接返回FactoryBean
 			return beanInstance;
 		}
 
 		// Now we have the bean instance, which may be a normal bean or a FactoryBean.
 		// If it's a FactoryBean, we use it to create a bean instance, unless the
 		// caller actually wants a reference to the factory.
+		//这里过滤掉普通bean
 		if (!(beanInstance instanceof FactoryBean)) {
 			return beanInstance;
 		}
 
+
+		//到这个地方一定是FactoryBean对象并且需要的对象是它的getObject方法的返回值
 		Object object = null;
 		if (mbd != null) {
 			mbd.isFactoryBean = true;
 		}
 		else {
+			//尝试从缓存中获取
 			object = getCachedObjectForFactoryBean(beanName);
 		}
 		if (object == null) {
@@ -1958,6 +1842,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			if (mbd == null && containsBeanDefinition(beanName)) {
 				mbd = getMergedLocalBeanDefinition(beanName);
 			}
+			//是否是系统定义的
+			//如果是系统定义的就不进行后置处理？？
 			boolean synthetic = (mbd != null && mbd.isSynthetic());
 			object = getObjectFromFactoryBean(factory, beanName, !synthetic);
 		}

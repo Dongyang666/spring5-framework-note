@@ -1,4 +1,4 @@
-package com.dyliu.Listener;
+package com.dyliu.listener;
 
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
@@ -17,6 +17,6 @@ import org.springframework.stereotype.Component;
 public class BlackEmailSendListener implements ApplicationListener<BlackEvent> {
 	@Override
 	public void onApplicationEvent(BlackEvent event) {
-
+		System.out.println("接口通知");
 	}
 }

@@ -1,5 +1,5 @@
-import com.dyliu.aop.A;
-import com.dyliu.aop.AopAppConfig;
+import com.dyliu.config.AppConfig;
+import com.dyliu.prototype.ProtoType;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
@@ -10,10 +10,15 @@ public class Main {
 		AnnotationConfigApplicationContext ac = new AnnotationConfigApplicationContext();
 		//激活pro环境.
 		//ac.getEnvironment().setActiveProfiles("dev");
-		ac.register(AopAppConfig.class);
-
+		ac.register(AppConfig.class);
 		ac.refresh();
-		ac.getBean(A.class).testPublic();
+		/*try {
+			System.out.println(ac.getBean("myFactoryBean"));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}*/
+		System.out.println(ac.getBean(ProtoType.class));
+		//((Map<String,Object>)ac.getBeanFactory().getSingletonMutex()).keySet().forEach(System.out::println);
 		/*ac.getBean(PropertyDemo.class).printEnv();*/
 		//ac.getBean(TestStaticAware.class).test();
 		//System.out.println(ac.getBean(OtherClass.class));

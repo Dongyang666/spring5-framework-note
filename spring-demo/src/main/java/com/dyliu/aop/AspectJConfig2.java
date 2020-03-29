@@ -9,11 +9,11 @@ import org.springframework.stereotype.Component;
  */
 @Aspect
 @Component
-public class AspectJConfig {
-	public AspectJConfig(){
+public class AspectJConfig2 {
+	public AspectJConfig2(){
 		//System.out.println("create AspectJConfig");
 	}
-	@Pointcut("execution(* com.dyliu.aop..*.*(..))")
+	@Pointcut("execution(* com.dyliu.config..*.*(..))")
 	public void pointCut(){
 	}
 

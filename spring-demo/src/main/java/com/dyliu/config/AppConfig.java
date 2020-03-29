@@ -1,5 +1,6 @@
 package com.dyliu.config;
 
+import com.dyliu.springlife.SpringBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
@@ -13,8 +14,10 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
 //@EnableJdkProxy
 @Configuration
 @EnableAspectJAutoProxy
-//@ComponentScan(value = {"com.dyliu.config","com.dyliu.springlife","com.dyliu.profile","com.dyliu.lookup"})
+//@ComponentScan(value = {"com.dyliu.config","com.dyliu.springlife","com.dyliu.profile","com.dyliu.lookup"})、
 @ComponentScan(value = {"com.dyliu.springlife"})
+//@ComponentScan(value = {"com.dyliu.factorybean"})
+//@ComponentScan(value = {"com.dyliu.prototype"})
 //@MyMapperScanner("com.dyliu.importBeanDefinitionRegistrar")
 public class AppConfig {
 	/*@Bean
@@ -28,10 +31,10 @@ public class AppConfig {
 		return new OtherClass();
 	}*/
 
-/*	@Bean(initMethod = "initMethod",destroyMethod = "destroyMethod")
+	//@Bean(initMethod = "initMethod",destroyMethod = "destroyMethod")
 	public SpringBean springBean(){
 		return new SpringBean();
-	}*/
+	}
 
 
 }

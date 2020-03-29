@@ -465,6 +465,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
 			//这个会去调用bean的后置处理器干扰spring实例化一个bean。
 			//如果有提供干扰的bean实例化的前的后置处理器则直接返回bean，不会走spring的实例化过程。
+			//这个后置处理器里面会调用AnnotationAwareAspectJAutoProxyCreator（Child）这个类的后置处理器
+			//其实是这个类的父类AbstractAutoProxyCreator（Parent）#postProcessBeforeInstantiation
+			//这个里面的后置处理器，Parent的后置处理器里面有调用了一个shouldSkip方法
+			//Parent和Child类中都有这个方法这时候会去调用Child类中的shouldSkip
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			//bean在实例化被实例化了直接返回结果。
 			if (bean != null) {
@@ -614,6 +618,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			 * 1、注入各种Aware对象，详细方法中有注释
 			 * 2、调用初始化方法@PostConstruct方法和实现了InitiazingBean接口的afterPropertiesSet方法
 			 * 3、把实现了ApplicationListener接口的bean添加到ac的集合中去
+			 *
 			 * 4、这个后置处理器AbstractAutoProxyCreator#postProcessAfterInitialization完成AOP
 			 */
 			exposedObject = initializeBean(beanName, exposedObject, mbd);
@@ -632,27 +637,35 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		 * 设计非常巧妙
 		 * 这个地方非常的秀
 		 * 判断是不是有早期引用，如果是则从getSingleton里面去获取对象，
+		 *
+		 * 如下分析是在及含有AOP情况话的循环依赖 $$A指的是已经被代理过的A对象
 		 * 在循环依赖之中A-B互相依赖，A创建的时候会在populateBean(填充属性)之前，把一个lambda表达式getEarlyBeanReference
-		 * 放到singletonFactories这个Map中去，然后填充属性的时候又要去创建B，而B在属性填充的时候
-		 * 又要注入A对象所以调用第一遍的getSingleton这个方法去获取并且从singletonFactories中拿到了一个lambda表达式
-		 * 然后执行这个lambda表达式会获取到代理对象$$A(lambda中会通过后置处理器吧对象代理)并且把这个$$A对象存到三级缓存里面
-		 * earlySingletonObjects这个Map里面
-		 * 然后回到B的初始化流程走B走到这个地方的时候又会去调用getSingleton并且传入的是false（只从单例池和三级缓存中那bean对象）
-		 * 这个时候拿到的空对象，因为getSingleton(B)没有被调用过所以只有二级缓存里面有创建B的lambda而三级缓存里面是没有的
+		 * 放到singletonFactories这个Map中去，然后填充属性的时候又要去创建B，而B在属性填充(populateBean)的时候
+		 * 又要注入A对象所以调用第一遍的getSingleton(A,true)这个方法去获取并且从singletonFactories中拿到了一个lambda表达式
+		 * 然后执行这个lambda表达式会获取到代理对象$$A(lambda中会执行后置处理器把对象变成代理对象)然后返回这个bean，
+		 * 并且把这个$$A对象存到三级缓存earlySingletonObjects这个Map里面
+		 * 然后回到B的初始化流程，B走到这个地方的时候又会去调用getSingleton并且传入的是false（只从单例池和三级缓存中那bean对象）
+		 * 这个时候拿到的空对象，因为getSingleton(B)没有被调用过所以只有二级缓存里面有创建B的lambda，而三级缓存里面是没有的
 		 * 正好B也不需要在这个地方代理他已经在initializeBean方法中生成了$$B对象了，然后走完B的流程
 		 * 会回到A的populateBean方法并且顺利注入已经走完整个bean周期的B
 		 * A的创建流程走到这个地方会去调用getSingleton这个方法并且传入false（只从三级缓存里面拿），这个时候三级缓存里面
-		 * 是有A对象的代理对象的拿到注入到B对象里面的$$A对象然后返回。
+		 * 是有A对象的代理对象的这样拿到的就是注入到B里面的$$A,
+		 * 什么意思就是说B引用的A对象必须和容器里面是同一个实例对象，如果没有这一步操作那exposedObject对象就不是
+		 * 注入到B对象中的A对象了，
+		 * 还有为什么这个地方A能拿到自己的对象而B拿不到呢 就是B在获取A的时候调用过一次getSingleton（A，true）所以
+		 * A被缓存到三级缓存里面了，而B只是把自己存入了二级缓存里面所以这个地方拿出来是空（设计很巧妙，B对象不需要从getEarlyBeanReference
+		 * 这个里面拿到代理对象，因为initializeBean这个里面已经把B变成代理对象了）
 		 */
 		if (earlySingletonExposure) {
-			//很秀注意这个第二个参数是false，他只会从三级缓存里面拿一次bean对象，啥意思呢
-			//就是说这个方法必须被调用过一次第二次调用的时候才能拿到对象
-			//不太好理解就是
+			//很秀注意这个第二个参数是false，他只会从三级缓存里面拿一次bean对象
+			//也即是说如果某个对象在二级缓存里面这个方法是永远拿不到这个对象的除非是true
+			//而在doGetBean方法里面调用的getSingleton传入的true（可以从二级或者三级里面拿）
 			Object earlySingletonReference = getSingleton(beanName, false);
 			if (earlySingletonReference != null) {
 				if (exposedObject == bean) {
 					exposedObject = earlySingletonReference;
 				}
+				//这个应该还是处理依赖关系的
 				else if (!this.allowRawInjectionDespiteWrapping && hasDependentBean(beanName)) {
 					String[] dependentBeans = getDependentBeans(beanName);
 					Set<String> actualDependentBeans = new LinkedHashSet<>(dependentBeans.length);
@@ -676,6 +689,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Register bean as disposable.
 		try {
+			//把需要执行@preDestroy 实现DisposableBean接口，和destroyMethod方法设置到
+			//beanFactory的disposableBeans这个属性中，在容器close的时候会调用
 			registerDisposableBeanIfNecessary(beanName, bean, mbd);
 		}
 		catch (BeanDefinitionValidationException ex) {
@@ -1394,6 +1409,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 			//
 			BeanWrapper bw = new BeanWrapperImpl(beanInstance);
+
+
+			//bean在初始化之后会调用ResourceEditorRegistrar的registerCustomEditors
 			initBeanWrapper(bw);
 			//System.out.println(bw.getPropertyValue("i"));
 			return bw;
@@ -1469,7 +1487,6 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		//执行bean的实例化后置处理器的后置处理方法postProcessAfterInstantiation
 		//这个后置处理方法可以对bean的实例（对象非bean）进行自己修改，并且可以通过返回值决定是不是需要走自动填充属性
-		//还有bean实例化后置处理器的前置处理器方法postProcessBeforeInstantiation
 		//spring自带的默认都是不处理的直接返回true
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
@@ -1897,7 +1914,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		Object wrappedBean = bean;
-		if (mbd == null || !mbd.isSynthetic()) {
+			if (mbd == null || !mbd.isSynthetic()) {
 
 			//
 			/**
@@ -1915,14 +1932,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			/**
 			 * 第三个后置处理器InitDestroyAnnotationBeanPostProcessor，处理Lifecycle Callbacks
 			 * 拿到有注解了@PostConstruct注解和@PreDestroy注解存入到缓存中
-			 * 注意这个处理器只会只会执行@PostConstruct注解的方法
+			 * 1.注意这个处理器只会只会执行@PostConstruct注解的方法
 			 */
 			//后置处理器执行-初始化前置处理
 			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
 		}
 
 		try {
-			//执行实现了InitializingBean接口的初始化方法afterPropertiesSet
+
+			//2.执行实现了InitializingBean接口的初始化方法afterPropertiesSet
+			//3.还会执行指定的initMethod方法
 			invokeInitMethods(beanName, wrappedBean, mbd);
 		}
 		catch (Throwable ex) {
@@ -1994,6 +2013,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 		}
 
+		//执行initMethod方法
 		if (mbd != null && bean.getClass() != NullBean.class) {
 			String initMethodName = mbd.getInitMethodName();
 			if (StringUtils.hasLength(initMethodName) &&

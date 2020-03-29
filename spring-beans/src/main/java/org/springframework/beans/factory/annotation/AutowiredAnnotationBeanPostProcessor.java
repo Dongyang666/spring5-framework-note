@@ -311,6 +311,9 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 					Constructor<?> defaultConstructor = null;
 					Constructor<?> primaryConstructor = BeanUtils.findPrimaryConstructor(beanClass);
 					int nonSyntheticConstructors = 0;
+
+					//遍历所有候选的构造方法，把加了@Autowired注解的构造方法假如到candidates集合中去
+					//并且找见默认的无参构造方法（未加@Autowired）赋值给defaultConstructor
 					for (Constructor<?> candidate : rawCandidates) {
 						if (!candidate.isSynthetic()) {
 							nonSyntheticConstructors++;
@@ -322,7 +325,10 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						MergedAnnotation<?> ann = findAutowiredAnnotation(candidate);
 						//判断父类的构造方法是不是加了
 						if (ann == null) {
+							//这个地方是获取被代理的类的实际class对象
 							Class<?> userClass = ClassUtils.getUserClass(beanClass);
+							//如果不相同则代表以及被代理了则去获取实际class对象的构造方法的加了@AutoWired注解的
+							//class对象
 							if (userClass != beanClass) {
 								try {
 									Constructor<?> superCtor =
@@ -334,8 +340,9 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								}
 							}
 						}
-						//最终发现这个构造方法啥都每加
+						//候选的构造方法加了注解
 						if (ann != null) {
+							//有两个@Autowired
 							if (requiredConstructor != null) {
 								throw new BeanCreationException(beanName,
 										"Invalid autowire-marked constructor: " + candidate +
@@ -367,7 +374,10 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 					//加了@Autowired注解
 					if (!candidates.isEmpty()) {
 						// Add default constructor to list of optional constructors, as fallback.
+						//requiredConstructor字段如果为空，则表明构造方法加了@Autowired注解
+						//并且required字段为false
 						if (requiredConstructor == null) {
+							//那就把默认的构造方法放到候选集合中去
 							if (defaultConstructor != null) {
 								candidates.add(defaultConstructor);
 							}
@@ -380,7 +390,14 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						}
 						candidateConstructors = candidates.toArray(new Constructor<?>[0]);
 					}
-					//候选方法只有一个，并且构造方法参数大于零则选他
+					//能到这里，所有的构造函数都没有加@Autowierd
+					//有四种情况
+					//1.既有默认无参构造方法又有，有多个参数的构造函数
+					//2.只有一个无参的构造函数
+					//3.只有一个有参的构造函数
+					//4.没有无参的构造函数，并且有多个有参的构造函数
+
+					//3
 					else if (rawCandidates.length == 1 && rawCandidates[0].getParameterCount() > 0) {
 						candidateConstructors = new Constructor<?>[] {rawCandidates[0]};
 					}

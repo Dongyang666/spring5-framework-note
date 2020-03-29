@@ -816,6 +816,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		for (String beanName : beanNames) {
 			//实例化之前还是合并一下bd
 			RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
+			// 不是抽象类并且是单例的并且不是懒加载的。
 			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
 				//再次验证
 				if (isFactoryBean(beanName)) {
@@ -845,6 +846,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 
 		// Trigger post-initialization callback for all applicable beans...
+		//这个地方会执行最后一次后置处理器叫afterSingletonsInstantiated
+		//其中有一个后置处理器叫EventListenerMethodProcessor会处理加了@EventListener注解的方法
 		for (String beanName : beanNames) {
 			Object singletonInstance = getSingleton(beanName);
 			if (singletonInstance instanceof SmartInitializingSingleton) {

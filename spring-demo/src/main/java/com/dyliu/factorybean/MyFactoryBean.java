@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
  * 如果我们来配置的话，根本无法完成，最好的办法就是还是交给维护第三方去配置，但是DataSource是不能去修改的。
  * 这个时候，就可以用FactoryBean来完成，在getObject配置好DataSource，并且返回。
  * 我们经常使用的Mybatis也利用了FactoryBean接口。
+ *
+ * FactoryBean不允许用户通过.class获取实例
  */
 @Component
 public class MyFactoryBean implements FactoryBean<DataSource> {

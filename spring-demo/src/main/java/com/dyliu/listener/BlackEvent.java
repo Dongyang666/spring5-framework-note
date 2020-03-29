@@ -1,10 +1,11 @@
-package com.dyliu.Listener;
+package com.dyliu.listener;
 
 import org.springframework.context.ApplicationEvent;
 
 /**
  * @author liudongyang
  */
+//@Component
 public class BlackEvent extends ApplicationEvent {
 	private String address;
 	private String content;

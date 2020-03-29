@@ -8,6 +8,8 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,6 +68,10 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 		System.out.println(test);
 		System.out.println("SpringBean---prototype构造方法");
 	}
+	public SpringBean(Test test,Test test1){
+		System.out.println(test);
+		System.out.println("SpringBean---prototype构造方法");
+	}
 
 	/*@Lookup
 	public Prototype prototype(){
@@ -75,12 +81,12 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
-		System.out.println("afterPropertiesSet");
+		System.out.println("interface afterPropertiesSet");
 	}
 
 	@Override
 	public void destroy() throws Exception {
-		System.out.println("destroy");
+		System.out.println("interface destroy");
 	}
 
 	@Override
@@ -102,6 +108,16 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 	public void test(){
 		System.out.println(context);
 	}
+	@PostConstruct
+	private void postConstruct(){
+		System.out.println("postConstruct");
+	}
+
+	@PreDestroy
+	private void preDestroy(){
+		System.out.println("preDestroy");
+	}
+
 	public void initMethod() {
 		System.out.println("initMethod");
 	}
@@ -112,6 +128,6 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 
 	@Override
 	public void onApplicationEvent(ContextClosedEvent event) {
-
+		System.out.println("contextClosedEvent");
 	}
 }
