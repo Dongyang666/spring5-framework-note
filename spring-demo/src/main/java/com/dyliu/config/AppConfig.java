@@ -4,6 +4,7 @@ import com.dyliu.springlife.SpringBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.context.annotation.PropertySource;
 
 /**
  * @author liudongyang
@@ -15,10 +16,12 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
 @Configuration
 @EnableAspectJAutoProxy
 //@ComponentScan(value = {"com.dyliu.config","com.dyliu.springlife","com.dyliu.profile","com.dyliu.lookup"})、
-@ComponentScan(value = {"com.dyliu.springlife"})
+//@ComponentScan(value = {"com.dyliu.springlife"})
 //@ComponentScan(value = {"com.dyliu.factorybean"})
 //@ComponentScan(value = {"com.dyliu.prototype"})
 //@MyMapperScanner("com.dyliu.importBeanDefinitionRegistrar")
+@ComponentScan(value = {"com.dyliu.value"})
+@PropertySource(value = "classpath:app.properties")
 public class AppConfig {
 	/*@Bean
 	public TestClass getTestClass(){

@@ -527,6 +527,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				//1、执行bean工厂后置处理器 完成扫描
 				//2、解析类成beanDefinition对象，并且put到beanDefinitionMap当中
 				//3、再次执行bean工厂后置处理器，完成对@Configuration类的cglib代理
+				//解析了PropertySource注解把配置的配置文件解析到propertySourceList
+				//成了ResourcePropertySource对象其中属性值存在source（Properties）中
 				invokeBeanFactoryPostProcessors(beanFactory);
 				/**
 				 *

@@ -259,6 +259,7 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @PropertySource annotations，用来加载properties文件
+		// 解析@PropertySource注解处理配置文件
 		for (AnnotationAttributes propertySource : AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), PropertySources.class,
 				org.springframework.context.annotation.PropertySource.class)) {

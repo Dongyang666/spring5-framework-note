@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -17,7 +16,7 @@ import java.util.Optional;
 /**
  * @author liudongyang
  */
-@Component
+//@Component
 public class SpringBean implements InitializingBean, DisposableBean, BeanNameAware, BeanFactoryAware, BeanClassLoaderAware, ApplicationListener<ContextClosedEvent> {
 	public static ApplicationContext applicationContext = null;
 
@@ -63,12 +62,13 @@ public class SpringBean implements InitializingBean, DisposableBean, BeanNameAwa
 		System.out.println("SpringBean---默认构造方法");
 	}
 
-	@Autowired
+	//@Autowired
 	public SpringBean(Test test){
 		System.out.println(test);
 		System.out.println("SpringBean---prototype构造方法");
 	}
-	public SpringBean(Test test,Test test1){
+	@Autowired
+	public SpringBean(Test test,Test test1,List<ITest> list){
 		System.out.println(test);
 		System.out.println("SpringBean---prototype构造方法");
 	}

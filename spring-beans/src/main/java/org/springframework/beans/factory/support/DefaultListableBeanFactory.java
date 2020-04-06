@@ -1171,6 +1171,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			return new Jsr330Factory().createDependencyProvider(descriptor, requestingBeanName);
 		}
 		else {
+			//处理@Lazy Case
 			Object result = getAutowireCandidateResolver().getLazyResolutionProxyIfNecessary(
 					descriptor, requestingBeanName);
 			if (result == null) {
@@ -1205,6 +1206,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		InjectionPoint previousInjectionPoint = ConstructorResolver.setCurrentInjectionPoint(descriptor);
 		try {
 			//这个地方加快了属性注入的bean注入
+			// 只有ShortcutDependencyDescriptor实现了resolveShortcut方法，返回了非空值。
+			// 目前版本代码只在AutowiredFieldElement、AutowiredMethodElement类中使用到，
+			// 也即是说，只有解析@Autowired、@Value注解的元素才会用到，目的是为了将解析结果缓存起来，避免重复解析
 			Object shortcut = descriptor.resolveShortcut(this);
 			if (shortcut != null) {
 				return shortcut;
@@ -1212,7 +1216,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 			Class<?> type = descriptor.getDependencyType();
 			Object value = getAutowireCandidateResolver().getSuggestedValue(descriptor);
-			//这个应该是自定义啥啥的看不懂，跳过
+			// 处理@Value注解，取值注解中的value属性中的值(原样，未经过解析的)，
+			// 如果descriptor未被@Value标注，则返回null
+			// 注：从此处可知，@Value注解的优先级较高，只要找到了就处理，不再往下走
 			if (value != null) {
 				//如果注入类型是一个String的话,
 				//如果自定义了转换器这个地方应该会转换吧？？
@@ -1220,13 +1226,16 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				//有时间研究一下这段
 				//这个后面在分析吧现在看不懂
 				if (value instanceof String) {
+					// 处理占位符如${}，做占位符的替换(不解析SP EL表达式)
 					String strVal = resolveEmbeddedValue((String) value);
 					BeanDefinition bd = (beanName != null && containsBean(beanName) ?
 							getMergedBeanDefinition(beanName) : null);
+					// 解析SP EL(如#{})
 					value = evaluateBeanDefinitionString(strVal, bd);
 				}
 				TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
 				try {
+					// 类型转换，把解析出来的结果转成type类型
 					return converter.convertIfNecessary(value, type, descriptor.getTypeDescriptor());
 				}
 				catch (UnsupportedOperationException ex) {

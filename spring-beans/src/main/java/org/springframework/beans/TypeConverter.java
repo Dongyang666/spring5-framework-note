@@ -16,11 +16,11 @@
 
 package org.springframework.beans;
 
-import java.lang.reflect.Field;
-
 import org.springframework.core.MethodParameter;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.lang.Nullable;
+
+import java.lang.reflect.Field;
 
 /**
  * Interface that defines type conversion methods. Typically (but not necessarily)
@@ -34,6 +34,10 @@ import org.springframework.lang.Nullable;
  * @since 2.0
  * @see SimpleTypeConverter
  * @see BeanWrapperImpl
+ */
+/**
+ * 定义类型转换方法的接口。通常（但不一定）与PropertyEditorRegistry接口一起实现
+ * 通常接口TypeConverter的实现是基于非线程安全的PropertyEditors类，因此也不是线程安全的
  */
 public interface TypeConverter {
 
