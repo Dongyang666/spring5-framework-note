@@ -308,6 +308,9 @@ public class AnnotatedBeanDefinitionReader {
 		if (registry instanceof EnvironmentCapable) {
 			return ((EnvironmentCapable) registry).getEnvironment();
 		}
+		//创建一个标准的环境--
+		//1.会调用父类的构造方法AbstractEnvironment，父类构造方法中会调用customizePropertySources
+		// （这个方法在子类StandardEnvironment实现，并且把系统配置和系统环境注册到MutablePropertySources中去）
 		return new StandardEnvironment();
 	}
 

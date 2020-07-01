@@ -512,7 +512,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 			try {
 				//空方法留给程序猿进行扩展的
-				//bean工厂的前置处理器群
+				//bean工厂的前置处理器群   //在springMvc中用到了这个工厂的处理器
 				// Allows post-processing of the bean factory in context subclasses.
 				postProcessBeanFactory(beanFactory);
 

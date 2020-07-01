@@ -16,15 +16,15 @@
 
 package org.springframework.web.servlet.mvc.method;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.springframework.core.Ordered;
 import org.springframework.lang.Nullable;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerAdapter;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.support.WebContentGenerator;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Abstract base class for {@link HandlerAdapter} implementations that support
@@ -73,11 +73,16 @@ public abstract class AbstractHandlerMethodAdapter extends WebContentGenerator i
 	 * Given a handler method, return whether or not this adapter can support it.
 	 * @param handlerMethod the handler method to check
 	 * @return whether or not this adapter can adapt the given method
+	 * 又是抽象方法 又是模板方法设计模式
+	 * 这应该也是留着扩展用的 不过目前还没用到直接返回true
 	 */
 	protected abstract boolean supportsInternal(HandlerMethod handlerMethod);
 
 	/**
 	 * This implementation expects the handler to be an {@link HandlerMethod}.
+	 * 又是模板方法设计模式
+	 * 父类定义好流程 子类实现抽象方法就行了
+	 *
 	 */
 	@Override
 	@Nullable

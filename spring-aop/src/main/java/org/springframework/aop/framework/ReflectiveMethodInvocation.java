@@ -163,16 +163,15 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 			//执行目标方法
 			return invokeJoinpoint();
 		}
-
 		Object interceptorOrInterceptionAdvice =
 				this.interceptorsAndDynamicMethodMatchers.get(++this.currentInterceptorIndex);
+		// 动态拦截器？？？
 		if (interceptorOrInterceptionAdvice instanceof InterceptorAndDynamicMethodMatcher) {
 			// Evaluate dynamic method matcher here: static part will already have
 			// been evaluated and found to match.
 			InterceptorAndDynamicMethodMatcher dm =
 					(InterceptorAndDynamicMethodMatcher) interceptorOrInterceptionAdvice;
 			Class<?> targetClass = (this.targetClass != null ? this.targetClass : this.method.getDeclaringClass());
-
 			/*
 			 * 调用具有三个参数（3-args）的 matches 方法动态匹配目标方法，
 			 * 两个参数（2-args）的 matches 方法用于静态匹配

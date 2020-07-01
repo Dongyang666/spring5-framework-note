@@ -1,10 +1,6 @@
 package com.dyliu.config;
 
-import com.dyliu.springlife.SpringBean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.EnableAspectJAutoProxy;
-import org.springframework.context.annotation.PropertySource;
+import org.springframework.context.annotation.*;
 
 /**
  * @author liudongyang
@@ -17,13 +13,19 @@ import org.springframework.context.annotation.PropertySource;
 @EnableAspectJAutoProxy
 //@ComponentScan(value = {"com.dyliu.config","com.dyliu.springlife","com.dyliu.profile","com.dyliu.lookup"})、
 //@ComponentScan(value = {"com.dyliu.springlife"})
+@ComponentScan(value = {"com.dyliu.config"})
 //@ComponentScan(value = {"com.dyliu.factorybean"})
 //@ComponentScan(value = {"com.dyliu.prototype"})
+//@ComponentScan(value = {"com.dyliu.prototype"})
 //@MyMapperScanner("com.dyliu.importBeanDefinitionRegistrar")
-@ComponentScan(value = {"com.dyliu.value"})
-@PropertySource(value = "classpath:app.properties")
+//@ComponentScan(value = {"com.dyliu.value"})
+//@PropertySource(value = "classpath:app.properties",encoding = "UTF-8")
+//@PropertySource(value = "classpath:app-#{spring.profiles.active}.properties",encoding = "UTF-8")
+@PropertySource(value = "classpath:app-dev.properties",encoding = "UTF-8")
+//@Profile("dev")
 public class AppConfig {
-	/*@Bean
+
+	@Bean
 	public TestClass getTestClass(){
 		return new TestClass();
 	}
@@ -32,12 +34,12 @@ public class AppConfig {
 	public OtherClass getOtherClass(){
 		getTestClass();
 		return new OtherClass();
-	}*/
-
-	//@Bean(initMethod = "initMethod",destroyMethod = "destroyMethod")
-	public SpringBean springBean(){
-		return new SpringBean();
 	}
 
+	//@Bean(initMethod = "initMethod",destroyMethod = "destroyMethod")
+	/*public SpringBean springBean(){
+		return new SpringBean();
+	}
+*/
 
 }

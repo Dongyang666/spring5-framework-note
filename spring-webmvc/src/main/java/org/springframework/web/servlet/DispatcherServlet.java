@@ -16,30 +16,8 @@
 
 package org.springframework.web.servlet;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import javax.servlet.DispatcherType;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.BeanInitializationException;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -64,6 +42,15 @@ import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.multipart.MultipartResolver;
 import org.springframework.web.util.NestedServletException;
 import org.springframework.web.util.WebUtils;
+
+import javax.servlet.DispatcherType;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Central dispatcher for HTTP request handlers/controllers, e.g. for web UI controllers
@@ -500,12 +487,20 @@ public class DispatcherServlet extends FrameworkServlet {
 	 * <p>May be overridden in subclasses in order to initialize further strategy objects.
 	 */
 	protected void initStrategies(ApplicationContext context) {
+		// 初始化多媒体解析器
 		initMultipartResolver(context);
+		// 国际化处理
 		initLocaleResolver(context);
+		// 主题解析器
 		initThemeResolver(context);
+		// 核心的---controller解析器
+		// 这里加载核心的controller解析器到spring容器中
 		initHandlerMappings(context);
+		// controller处理适配器
 		initHandlerAdapters(context);
+		// 异常解析器
 		initHandlerExceptionResolvers(context);
+
 		initRequestToViewNameTranslator(context);
 		initViewResolvers(context);
 		initFlashMapManager(context);
@@ -592,7 +587,7 @@ public class DispatcherServlet extends FrameworkServlet {
 	 */
 	private void initHandlerMappings(ApplicationContext context) {
 		this.handlerMappings = null;
-
+		// 先看看spring容器里面自己有没有实现HandlerMapping接口的，如果自己实现了就不会走SpringMVC自己的mapping识别
 		if (this.detectAllHandlerMappings) {
 			// Find all HandlerMappings in the ApplicationContext, including ancestor contexts.
 			Map<String, HandlerMapping> matchingBeans =
@@ -603,6 +598,7 @@ public class DispatcherServlet extends FrameworkServlet {
 				AnnotationAwareOrderComparator.sort(this.handlerMappings);
 			}
 		}
+
 		else {
 			try {
 				HandlerMapping hm = context.getBean(HANDLER_MAPPING_BEAN_NAME, HandlerMapping.class);
@@ -615,6 +611,7 @@ public class DispatcherServlet extends FrameworkServlet {
 
 		// Ensure we have at least one HandlerMapping, by registering
 		// a default HandlerMapping if no other mappings are found.
+		// 如果用户没有注册则会走默认策略
 		if (this.handlerMappings == null) {
 			this.handlerMappings = getDefaultStrategies(context, HandlerMapping.class);
 			if (logger.isTraceEnabled()) {
@@ -859,13 +856,23 @@ public class DispatcherServlet extends FrameworkServlet {
 	@SuppressWarnings("unchecked")
 	protected <T> List<T> getDefaultStrategies(ApplicationContext context, Class<T> strategyInterface) {
 		String key = strategyInterface.getName();
+		// 这个是从配置文件（DispatcherServlet.properties）
+		// 里面读出来配置的处理controller的全类名
+		/**
+		 * org.springframework.web.servlet.HandlerMapping=org.springframework.web.servlet.handler.BeanNameUrlHandlerMapping,\
+		 * 	org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping,\
+		 * 	org.springframework.web.servlet.function.support.RouterFunctionMapping
+		 */
 		String value = defaultStrategies.getProperty(key);
 		if (value != null) {
+			// 把配置分割
 			String[] classNames = StringUtils.commaDelimitedListToStringArray(value);
 			List<T> strategies = new ArrayList<>(classNames.length);
 			for (String className : classNames) {
 				try {
 					Class<?> clazz = ClassUtils.forName(className, DispatcherServlet.class.getClassLoader());
+					// 挨个调用spring工厂的扩展点把这几个bean创建出来
+					// 这几个bean会走spring的整个生命周期，并且这几个bean的范围也被设置了prototype类型
 					Object strategy = createDefaultStrategy(context, clazz);
 					strategies.add((T) strategy);
 				}
@@ -898,6 +905,7 @@ public class DispatcherServlet extends FrameworkServlet {
 	 * @see org.springframework.beans.factory.config.AutowireCapableBeanFactory#createBean
 	 */
 	protected Object createDefaultStrategy(ApplicationContext context, Class<?> clazz) {
+		// 这个方法会
 		return context.getAutowireCapableBeanFactory().createBean(clazz);
 	}
 
@@ -1013,13 +1021,32 @@ public class DispatcherServlet extends FrameworkServlet {
 				multipartRequestParsed = (processedRequest != request);
 
 				// Determine handler for the current request.
+				// 这个地方通过abstractHandlerMapping及其子类获取当前请求执行的HandlerExecutionChain
+				// 这个chain对象里面包含了执行请求逻辑和所有拦截器对象
 				mappedHandler = getHandler(processedRequest);
 				if (mappedHandler == null) {
+					// 找不见处理器就返回404了
 					noHandlerFound(processedRequest, response);
 					return;
 				}
 
+				// 通过chain中的handler对象获取这个handler执行的适配器
+				// 就是把具体的执行逻辑封装成统一的handler方法中。方便下面执行
 				// Determine handler adapter for the current request.
+				// 这个地方为什么用适配器模式？？？
+				// 如果不用适配器模式下面需要调用controller的方法就要这么写，假设后面要扩展怎么弄
+				// 所以用适配器模式把这种全转成一个类型（HandlerAdapter）
+				// 这个具体的怎么转你可以扩展根据不同的类型转成HandlerAdapter
+				// 由这个接口的handle方法实现具体的不同的调用
+				// 感觉又有点像策略设计了
+
+				/**
+				 * if (mappedHandler.getHandler() instanceof Controller) {
+				 *
+				 *   }else if (mappedHandler.getHandler() instanceof HttpRequestHandler) {
+				 *
+				 *   }else if (标注了controller注解)
+				 */
 				HandlerAdapter ha = getHandlerAdapter(mappedHandler.getHandler());
 
 				// Process last-modified header, if supported by the handler.
@@ -1031,7 +1058,7 @@ public class DispatcherServlet extends FrameworkServlet {
 						return;
 					}
 				}
-
+				// 执行mappingHandler中的所有拦截器
 				if (!mappedHandler.applyPreHandle(processedRequest, response)) {
 					return;
 				}
@@ -1044,6 +1071,7 @@ public class DispatcherServlet extends FrameworkServlet {
 				}
 
 				applyDefaultViewName(processedRequest, mv);
+				// 执行
 				mappedHandler.applyPostHandle(processedRequest, response, mv);
 			}
 			catch (Exception ex) {
@@ -1231,6 +1259,9 @@ public class DispatcherServlet extends FrameworkServlet {
 	protected HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
 		if (this.handlerMappings != null) {
 			for (HandlerMapping mapping : this.handlerMappings) {
+				// 所有的handlerMapping都是这个类AbstractHandlerMapping的子类
+				// 这个getHandler方法中调用了一个抽象方法getHandlerInternal，而在这个方法中不同的handlerMapping
+				// 实现获取HandlerExecutionChain的具体逻辑
 				HandlerExecutionChain handler = mapping.getHandler(request);
 				if (handler != null) {
 					return handler;
@@ -1267,6 +1298,10 @@ public class DispatcherServlet extends FrameworkServlet {
 	protected HandlerAdapter getHandlerAdapter(Object handler) throws ServletException {
 		if (this.handlerAdapters != null) {
 			for (HandlerAdapter adapter : this.handlerAdapters) {
+				// HttpRequestHandlerAdapter 处理实现HttpRequestHandler接口。这个handler是实现接口的类的对象
+				// SimpleControllerHandlerAdapter 处理实现controller接口。这个handler是实现接口的类的对象
+				// SimpleServletHandlerAdapter 处理实现servlet接口。这个handler是实现接口的类的对象
+				// RequestMappingHandlerAdapter 处理实现RequestMapping注解。而这个handler是一个HandlerMethod
 				if (adapter.supports(handler)) {
 					return adapter;
 				}

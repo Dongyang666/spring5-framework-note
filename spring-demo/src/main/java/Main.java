@@ -1,27 +1,28 @@
-import com.dyliu.config.AppConfig;
-import com.dyliu.value.Config;
+import com.dyliu.aop.AopAppConfig;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-
-import java.nio.charset.Charset;
 
 /**
  * @author liudongyang
  */
 public class Main {
+
 	public static void main(String[] args) {
-		String csn = Charset.defaultCharset().name();
-		System.out.println(csn);
 		AnnotationConfigApplicationContext ac = new AnnotationConfigApplicationContext();
-		//激活pro环境.
-		//ac.getEnvironment().setActiveProfiles("dev");
-		ac.register(AppConfig.class);
+		// 激活pro环境.
+		// ac.getEnvironment().setDefaultProfiles("dev");
+		// ac.getEnvironment().setActiveProfiles("pro");
+		ac.register(AopAppConfig.class);
+		//ac.scan("com.dyliu.config");
 		ac.refresh();
+		//ac.getBean(A.class).testA();
+		//ac.getBean(TestClass.class);
+		//ac.getBean(X.class);
 		/*try {
 			System.out.println(ac.getBean("myFactoryBean"));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}*/
-		ac.getBean(Config.class).config();
+		//ac.getBean(A.class).testA();
 		/**
 		 * 自动装配未被spring管理的bean，但是spring容器中还是没有这个bean
 		 * Spring 提供了一种机制，能够为第三方框架赋能，让Spring管理的Bean去装配和填充那些不被Spring托管的Bean，

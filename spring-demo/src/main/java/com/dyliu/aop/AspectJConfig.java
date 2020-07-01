@@ -1,7 +1,10 @@
 package com.dyliu.aop;
 
+import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.*;
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,7 +16,7 @@ public class AspectJConfig {
 	public AspectJConfig(){
 		//System.out.println("create AspectJConfig");
 	}
-	@Pointcut("execution(* com.dyliu.aop..*.*(..))")
+	@Pointcut("execution(* com.dyliu.aop.*.*(..))")
 	public void pointCut(){
 	}
 
@@ -23,7 +26,7 @@ public class AspectJConfig {
 		System.out.println("before1");
 	}*/
 
-	@Before("pointCut()")
+	//@Before("pointCut()")
 	public void before() throws Exception {
 		System.out.println("before");
 
@@ -32,24 +35,25 @@ public class AspectJConfig {
 
 
 	@After("pointCut()")
-	public void after() throws Exception {
+	public void after(JoinPoint joinPoint) throws Exception {
 		System.out.println("After");
+		System.out.println(joinPoint.getClass().getName());
 
 	}
 
-	@AfterReturning("pointCut()")
+	//@AfterReturning("pointCut()")
 	public void afterReturn() throws Exception {
 		System.out.println("afterReturn");
 
 	}
 
-	@AfterThrowing("pointCut()")
+	//@AfterThrowing("pointCut()")
 	public void afterThrowing() throws Exception {
 		System.out.println("afterThrowing");
 
 	}
 
-	@Around("pointCut()")
+	//@Around("pointCut()")
 	public Object around(ProceedingJoinPoint pjp) throws Throwable {
 		System.out.println("around before");
 		//这个执行回调用链了

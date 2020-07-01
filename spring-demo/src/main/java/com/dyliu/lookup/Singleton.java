@@ -24,6 +24,7 @@ public class Singleton implements ApplicationContextAware {
 	public Singleton(){
 		System.out.println("create Singleton");
 	}
+
 	@Lookup
 	public Prototype getPrototype(){
 		return null;

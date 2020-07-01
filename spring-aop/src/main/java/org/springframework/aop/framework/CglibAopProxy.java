@@ -299,6 +299,7 @@ class CglibAopProxy implements AopProxy, Serializable {
 				new StaticDispatcher(this.advised.getTargetSource().getTarget()) : new SerializableNoOp());
 
 		Callback[] mainCallbacks = new Callback[] {
+				//第一个是aop的执行逻辑拦截器（这个拦截器逻辑）
 				aopInterceptor,  // for normal advice 将拦截器链加入到callback中
 				targetInterceptor,  // invoke target without considering advice, if optimized
 				new SerializableNoOp(),  // no override for methods mapped to this
@@ -639,6 +640,10 @@ class CglibAopProxy implements AopProxy, Serializable {
 	/**
 	 * General purpose AOP callback. Used when the target is dynamic or when the
 	 * proxy is not frozen.
+	 *
+	 * 通用AOP回调。当目标是动态的或代理未冻结时使用
+	 *
+	 * @Lazy 注解实现 构造方法循环依赖
 	 */
 	private static class DynamicAdvisedInterceptor implements MethodInterceptor, Serializable {
 
@@ -666,6 +671,7 @@ class CglibAopProxy implements AopProxy, Serializable {
 				target = targetSource.getTarget();
 				Class<?> targetClass = (target != null ? target.getClass() : null);
 				//和jdk代理一样先获取拦截链
+				//所有的代理对象都会走到这里
 				List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
 				Object retVal;
 				// Check whether we only have one InvokerInterceptor: that is,
@@ -677,12 +683,14 @@ class CglibAopProxy implements AopProxy, Serializable {
 					// it does nothing but a reflective operation on the target, and no hot
 					// swapping or fancy proxying.
 					Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+					//执行被代理对象的方法ååå
 					retVal = methodProxy.invoke(target, argsToUse);
 				}
 				else {
 					// We need to create a method invocation...
 					//进入调用链
 					//CglibMethodInvocation和JDK完成调用链是同一套代码完成调用链调用。
+					//核心代码在这 org.springframework.aop.framework.ReflectiveMethodInvocation.proceed
 					retVal = new CglibMethodInvocation(proxy, target, method, args, targetClass, chain, methodProxy)
 							.proceed();
 				}

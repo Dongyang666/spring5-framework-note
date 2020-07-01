@@ -282,6 +282,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					}
 					afterSingletonCreation(beanName);
 				}
+				// 这地方没分析到位 这个方法就是把创建出来的bean注册到单例池的方法
 				if (newSingleton) {
 					addSingleton(beanName, singletonObject);
 				}

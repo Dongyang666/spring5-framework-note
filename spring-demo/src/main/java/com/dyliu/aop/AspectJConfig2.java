@@ -2,17 +2,17 @@ package com.dyliu.aop;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.*;
-import org.springframework.stereotype.Component;
 
 /**
  * @author liudongyang
  */
 @Aspect
-@Component
+//@Component
 public class AspectJConfig2 {
 	public AspectJConfig2(){
 		//System.out.println("create AspectJConfig");
 	}
+
 	@Pointcut("execution(* com.dyliu.config..*.*(..))")
 	public void pointCut(){
 	}
@@ -23,7 +23,8 @@ public class AspectJConfig2 {
 		System.out.println("before1");
 	}*/
 
-	@Before("pointCut()")
+	// 可以配置别的切面中的切点只要配置方法的全路径名
+	@Before("com.dyliu.aop.AspectJConfig.pointCut()")
 	public void before() throws Exception {
 		System.out.println("before");
 

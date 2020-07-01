@@ -16,14 +16,6 @@
 
 package org.springframework.context.annotation;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import org.springframework.aop.TargetSource;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -34,6 +26,10 @@ import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
+import java.util.*;
 
 /**
  * Complete implementation of the
@@ -76,6 +72,10 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 		Assert.state(getBeanFactory() instanceof DefaultListableBeanFactory,
 				"BeanFactory needs to be a DefaultListableBeanFactory");
 		final DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) getBeanFactory();
+		// 延迟加载其实就是先注入了一个代理对象，并且把真实生成实例对象的逻辑写到了getTarget方法中
+		// 并且把ts对象通过构造函数传入到方法拦截器中，
+		// 这样代理对象调用真实class的某个方法时，会进入方法拦截器，而拦截器中可以通过getTarget获取到
+		// 真实class的对象通过真实对象调用方法实例即可实现。
 		TargetSource ts = new TargetSource() {
 			@Override
 			public Class<?> getTargetClass() {
@@ -114,6 +114,7 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 		if (dependencyType.isInterface()) {
 			pf.addInterface(dependencyType);
 		}
+		// 通过ProxyFactory生成代理对象
 		return pf.getProxy(beanFactory.getBeanClassLoader());
 	}
 

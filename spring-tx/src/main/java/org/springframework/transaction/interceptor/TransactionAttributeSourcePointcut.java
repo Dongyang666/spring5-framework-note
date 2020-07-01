@@ -16,15 +16,15 @@
 
 package org.springframework.transaction.interceptor;
 
-import java.io.Serializable;
-import java.lang.reflect.Method;
-
 import org.springframework.aop.ClassFilter;
 import org.springframework.aop.support.StaticMethodMatcherPointcut;
 import org.springframework.dao.support.PersistenceExceptionTranslator;
 import org.springframework.lang.Nullable;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.ObjectUtils;
+
+import java.io.Serializable;
+import java.lang.reflect.Method;
 
 /**
  * Inner class that implements a Pointcut that matches if the underlying
@@ -81,6 +81,8 @@ abstract class TransactionAttributeSourcePointcut extends StaticMethodMatcherPoi
 	/**
 	 * {@link ClassFilter} that delegates to {@link TransactionAttributeSource#isCandidateClass}
 	 * for filtering classes whose methods are not worth searching to begin with.
+	 * 这个是事务Advisor中的类拦截器
+	 * AOP拦截逻辑是先拦截类看看匹配不 然后再看看方法匹配不
 	 */
 	private class TransactionAttributeSourceClassFilter implements ClassFilter {
 
@@ -92,6 +94,7 @@ abstract class TransactionAttributeSourcePointcut extends StaticMethodMatcherPoi
 				return false;
 			}
 			TransactionAttributeSource tas = getTransactionAttributeSource();
+			// 最终调用TransactionAttributeSource#isCandidateClass方法判断
 			return (tas == null || tas.isCandidateClass(clazz));
 		}
 	}

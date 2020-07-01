@@ -1,12 +1,21 @@
 package com.dyliu.aop;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
  * @author liudongyang
  */
 @Component
-public class A implements IA {
+public class A  {
+
+	@Autowired
+	private B b;
+
+	public A(){
+		System.out.println("create A ----");
+	}
+
 	public void testPublic() throws Exception {
 		System.out.println("testPublic");
 //		throw new Exception("---Exception--");
@@ -16,7 +25,8 @@ public class A implements IA {
 		//((A)AopContext.currentProxy()).testB();
 	}
 
-	/*public void testB(){
-		System.out.println("testB");
-	}*/
+	public void testA(){
+		//System.out.println("testB");
+		b.test();
+	}
 }

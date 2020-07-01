@@ -137,6 +137,7 @@ class ConfigurationClassParser {
 		//又实例化了一个ComponentScanAnnotationParser
 		this.componentScanParser = new ComponentScanAnnotationParser(
 				environment, resourceLoader, componentScanBeanNameGenerator, registry);
+		//这个是对环境过滤器，过滤到非当前环境的bean
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, resourceLoader);
 	}
 
@@ -205,6 +206,8 @@ class ConfigurationClassParser {
 	//暂时配置类理解为可以引用其他类的类叫配置类
 	protected void processConfigurationClass(ConfigurationClass configClass) throws IOException {
 		//这个方法会递归，所以这是一个base case
+		//这个地方很关键其实，，，就是看当前的bean是不是需要被跳过
+		//
 		if (this.conditionEvaluator.shouldSkip(configClass.getMetadata(), ConfigurationPhase.PARSE_CONFIGURATION)) {
 			return;
 		}
@@ -263,6 +266,8 @@ class ConfigurationClassParser {
 		for (AnnotationAttributes propertySource : AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), PropertySources.class,
 				org.springframework.context.annotation.PropertySource.class)) {
+
+			//处理配置文件注解
 			if (this.environment instanceof ConfigurableEnvironment) {
 				processPropertySource(propertySource);
 			}

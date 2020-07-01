@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Configuration
-@PropertySource("classpath:app.properties")
+@PropertySource("classpath:app-pro.properties")
 public class PropertyDemo {
 	@Autowired
 	private Environment environment;

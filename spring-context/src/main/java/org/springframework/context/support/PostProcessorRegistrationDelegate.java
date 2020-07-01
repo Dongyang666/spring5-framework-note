@@ -47,6 +47,7 @@ final class PostProcessorRegistrationDelegate {
 	 * postProcessBeanDefinitionRegistry这个方法
 	 * 第一遍执行程序猿手动注册的
 	 * 第二遍执行spring提供优先级最高的（实现这个接口PriorityOrdered） ConfigurationClassPostProcessor
+	 * 第二遍执行完成之后spring容器里面就会有程序猿通过注解注入的。然后执行第三遍
 	 * 第三遍执行spring提供的按照优先级（实现这个Ordered）
 	 * 第四遍执行剩下的未执行的（通过set保证不会二次执行）
 	 *

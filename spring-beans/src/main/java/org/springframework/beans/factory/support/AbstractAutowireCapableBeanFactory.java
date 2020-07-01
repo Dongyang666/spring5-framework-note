@@ -556,14 +556,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					// 1.这个里面有一个很重要的后置处理器叫AutowiredAnnotationBeanPostProcessor
 					// 会执行这个后置处理器把bean里面的@Autowired @Value @Inject注入的信息存到
 					// bd的externallyManagedConfigMembers这个属性去，不知道存进去干啥？？
-					//还有一个操作就是调用这个方法findAutowiringMetadata
-					//调用一遍之后会把@Autowired @Value的Method和Field缓存到injectionMetadataCache（Map）中
-					//缓存这个map有用后面populateBean方法会从缓存中拿出来进行getBean操作注入到字段或者执行方法。
+					// 还有一个操作就是调用这个方法findAutowiringMetadata
+					// 调用一遍之后会把@Autowired @Value的Method和Field缓存到injectionMetadataCache（Map）中
+					// 缓存这个map有用后面populateBean方法会从缓存中拿出来进行getBean操作注入到字段或者执行方法。
 
 					// 2.还有一个后置处理器叫CommonAnnotationBeanPostProcessor
 					// 会把@Resource EJB和webService的的信息也存到bd的属性去
-					//3.还有个后置处理器叫ApplicationListenerDetector
-					//如果这个bean是ApplicationListener类型的存到后置处理器自身的beanNames这个Map<beanName,isSingleton>集合中去
+					// 3.还有个后置处理器叫ApplicationListenerDetector
+					// 如果这个bean是ApplicationListener类型的存到后置处理器自身的beanNames这个Map<beanName,isSingleton>集合中去
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
@@ -1233,7 +1233,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			return obtainFromSupplier(instanceSupplier, beanName);
 		}
 
-		//不理解 工厂方法？
+
+		// 这个地方也是很牛皮的 如果是通过@Bean注入的方法这个mbd的FactoryMethodName属性就是
+		// 这个@Bean的方法名称
+		// 而这个方法里面会把当前执行的@Bean方法名通过threadLocal存入到当前线程中
+		// 如果这个方法中又调用了其他@Bean方法 会在后面的代理逻辑isCurrentlyInvokedFactoryMethod
+		// 这个方法中判断当前执行的方法和当前调用的方法是不是同一个。如果是直接调用@Bean返回对象
+		// 如果不是同一个方法则说明需要通过getBean从beanFactory中获取。
 		if (mbd.getFactoryMethodName() != null) {
 			return instantiateUsingFactoryMethod(beanName, mbd, args);
 		}

@@ -63,14 +63,19 @@ import java.util.Arrays;
  * @see #enhance
  * @see ConfigurationClassPostProcessor
  */
+
+/**
+ * 用来代理@Configuration注解的config文件
+ */
 class ConfigurationClassEnhancer {
 
 	// The callbacks to use. Note that these callbacks must be stateless.
 	private static final Callback[] CALLBACKS = new Callback[] {
-			//增强方法，
+			//处理加了@Bean的方法
 			//不每次都去调用new
 			new BeanMethodInterceptor(),
-			//设置一个beanFactory
+			//拦截setBeanFactory方法，也就是拦截BeanFactoryAware的方法，
+			//这个拦截器肯定会先执行，先让代理对象拥有beanFactory对象
 			new BeanFactoryAwareMethodInterceptor(),
 			//什么都不做 返回yuan原方法
 			NoOp.INSTANCE
@@ -92,7 +97,7 @@ class ConfigurationClassEnhancer {
 	 * @return the enhanced subclass
 	 */
 	public Class<?> enhance(Class<?> configClass, @Nullable ClassLoader classLoader) {
-		//判断是都被代理过  为甚没这么判断？？
+		//判断是都被代理过  为甚没这么判断？？newEnhancer这个方法中会把这个接口设置到代理类上
 		if (EnhancedConfiguration.class.isAssignableFrom(configClass)) {
 			if (logger.isDebugEnabled()) {
 				logger.debug(String.format("Ignoring request to enhance %s as it has " +
@@ -123,6 +128,8 @@ class ConfigurationClassEnhancer {
 		enhancer.setSuperclass(configSuperClass);
 		//增强接口，为什么要判断增强接口？？
 		//便于判断，表示一个类以及被增强了
+		//这个接口还有一个作用是继承了BeanFactoryAware方法也就是有setBeanFactory方法
+		//可以通过这个方法传入的beanFactory对象让代理类的$$beanFactory字段有beanFactory
 		enhancer.setInterfaces(new Class<?>[] {EnhancedConfiguration.class});
 		//不继承Factory接口
 		enhancer.setUseFactory(false);
@@ -148,6 +155,7 @@ class ConfigurationClassEnhancer {
 		Class<?> subclass = enhancer.createClass();
 		// Registering callbacks statically (as opposed to thread-local)
 		// is critical for usage in an OSGi environment (SPR-5932)...
+		//在这个地方设置了回调的处理方式 草
 		Enhancer.registerStaticCallbacks(subclass, CALLBACKS);
 		return subclass;
 	}
@@ -202,6 +210,9 @@ class ConfigurationClassEnhancer {
 			//用哪个回调处理
 			for (int i = 0; i < this.callbacks.length; i++) {
 				Callback callback = this.callbacks[i];
+				//这个地方设计也很巧妙
+				//把某个类设计实现两个接口一个接口是用来做方法拦截的
+				//一个是用来判断当前这个子类是不是支持这种方法的拦截。
 				if (!(callback instanceof ConditionalCallback) || ((ConditionalCallback) callback).isMatch(method)) {
 					return i;
 				}
@@ -234,6 +245,7 @@ class ConfigurationClassEnhancer {
 			ClassEmitterTransformer transformer = new ClassEmitterTransformer() {
 				@Override
 				public void end_class() {
+					//设置了字段$$beanFactory 类型是BeanFactory
 					declare_field(Constants.ACC_PUBLIC, BEAN_FACTORY_FIELD, Type.getType(BeanFactory.class), null);
 					super.end_class();
 				}
@@ -289,10 +301,11 @@ class ConfigurationClassEnhancer {
 		public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
 			Field field = ReflectionUtils.findField(obj.getClass(), BEAN_FACTORY_FIELD);
 			Assert.state(field != null, "Unable to find generated BeanFactory field");
+			//把调用setFactoryBean方法传入的beanFactory设置到$$beanFactory
 			field.set(obj, args[0]);
-
 			// Does the actual (non-CGLIB) superclass implement BeanFactoryAware?
 			// If so, call its setBeanFactory() method. If not, just exit.
+			//执行父类是否设置了BeanFactoryAware
 			if (BeanFactoryAware.class.isAssignableFrom(ClassUtils.getUserClass(obj.getClass().getSuperclass()))) {
 				return proxy.invokeSuper(obj, args);
 			}
@@ -326,6 +339,8 @@ class ConfigurationClassEnhancer {
 		 * existence of this bean object.
 		 * @throws Throwable as a catch-all for any exception that may be thrown when invoking the
 		 * super implementation of the proxied method i.e., the actual {@code @Bean} method
+		 *
+		 * 拦截加了@Bean的方法
 		 */
 		@Override
 		@Nullable
@@ -502,7 +517,11 @@ class ConfigurationClassEnhancer {
 			//获取当前执行的方法，判断传入的方法是不是和当前执行的方法是不是相同的
 			//如果相同则直接创建对象即可。
 			//如果不同则需要判断
+			//这个地方通过threadLocal去获取线程执行的方法是啥。
+			//是在instantiateUsingFactoryMethod这个方法中set进去的
 			Method currentlyInvoked = SimpleInstantiationStrategy.getCurrentlyInvokedFactoryMethod();
+			// 如果是空的证明不是一个FactoryMethod
+			// 然后判断当前执行的方法和被调用的方法是不是同一个方法。
 			return (currentlyInvoked != null && method.getName().equals(currentlyInvoked.getName()) &&
 					Arrays.equals(method.getParameterTypes(), currentlyInvoked.getParameterTypes()));
 		}

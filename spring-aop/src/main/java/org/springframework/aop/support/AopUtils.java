@@ -215,10 +215,17 @@ public abstract class AopUtils {
 	 */
 	public static boolean canApply(Pointcut pc, Class<?> targetClass, boolean hasIntroductions) {
 		Assert.notNull(pc, "Pointcut must not be null");
+
+		// 获取切点表达式，并判断是否能够匹配上目标类。不能则直接返回，能则进一步判断和哪个方法匹配
 		if (!pc.getClassFilter().matches(targetClass)) {
 			return false;
 		}
-		//获取方法匹配器
+
+		// 然后继续寻找匹配类中哪个方法
+
+		// [AOP分析]pc.getMethodMatcher()和pc.getClassFilter()一样都能够获得切点表达式，然后去匹配
+		// [事务分析]pc.getMethodMatcher()返回的还是自身(this)-->TransactionAttributeSourcePointcut
+
 		MethodMatcher methodMatcher = pc.getMethodMatcher();
 		if (methodMatcher == MethodMatcher.TRUE) {
 			// No need to iterate the methods if we're matching any method anyway...
@@ -231,6 +238,8 @@ public abstract class AopUtils {
 		}
 
 		Set<Class<?>> classes = new LinkedHashSet<>();
+
+		// 添加JDK的动态代理类的原始接口，或者CGLIB的代理的原始类，本身是原始的也直接添加
 		if (!Proxy.isProxyClass(targetClass)) {
 			classes.add(ClassUtils.getUserClass(targetClass));
 		}
@@ -239,6 +248,7 @@ public abstract class AopUtils {
 		for (Class<?> clazz : classes) {
 			Method[] methods = ReflectionUtils.getAllDeclaredMethods(clazz);
 			for (Method method : methods) {
+				// 遍历类中的所有方法，查看是否匹配
 				if (introductionAwareMethodMatcher != null ?
 						introductionAwareMethodMatcher.matches(method, targetClass, hasIntroductions) :
 						methodMatcher.matches(method, targetClass)) {
@@ -295,6 +305,7 @@ public abstract class AopUtils {
 	}
 
 	/**
+	 * 主要功能是过滤出所有增强器中适用于当前目标beanClass的增强器
 	 * Determine the sublist of the {@code candidateAdvisors} list
 	 * that is applicable to the given class.
 	 * @param candidateAdvisors the Advisors to evaluate
@@ -308,17 +319,21 @@ public abstract class AopUtils {
 		}
 		List<Advisor> eligibleAdvisors = new ArrayList<>();
 		// 筛选IntroductionAdvisor（介绍型）通知器
+		// 首先处理引介增强 (引介增强的功能主要是对目标类的增强，可以添加一些属性和行为)
 		for (Advisor candidate : candidateAdvisors) {
 			if (candidate instanceof IntroductionAdvisor && canApply(candidate, clazz)) {
 				eligibleAdvisors.add(candidate);
 			}
 		}
 		boolean hasIntroductions = !eligibleAdvisors.isEmpty();
+
+
 		for (Advisor candidate : candidateAdvisors) {
 			if (candidate instanceof IntroductionAdvisor) {
 				// already processed
 				continue;
 			}
+
 			//筛选普通型通知器
 			if (canApply(candidate, clazz, hasIntroductions)) {
 				eligibleAdvisors.add(candidate);

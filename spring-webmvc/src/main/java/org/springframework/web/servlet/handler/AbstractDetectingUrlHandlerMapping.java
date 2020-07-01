@@ -52,6 +52,8 @@ public abstract class AbstractDetectingUrlHandlerMapping extends AbstractUrlHand
 	/**
 	 * Calls the {@link #detectHandlers()} method in addition to the
 	 * superclass's initialization.
+	 *
+	 * 这个方法是最开始这个类初始化的时候回被调用
 	 */
 	@Override
 	public void initApplicationContext() throws ApplicationContextException {
@@ -73,11 +75,18 @@ public abstract class AbstractDetectingUrlHandlerMapping extends AbstractUrlHand
 				BeanFactoryUtils.beanNamesForTypeIncludingAncestors(applicationContext, Object.class) :
 				applicationContext.getBeanNamesForType(Object.class));
 
+		// 遍历拿到的beanName
+
+
+		// 这个是beanName类型的处理逻辑
 		// Take any bean name that we can determine URLs for.
 		for (String beanName : beanNames) {
+			// 根据beanname拿到对饮的url（为什么是多个可能有别名）
+			// beanName = "/v1/user" 这种
 			String[] urls = determineUrlsForHandler(beanName);
 			if (!ObjectUtils.isEmpty(urls)) {
 				// URL paths found: Let's consider it a handler.
+				// 注册
 				registerHandler(urls, beanName);
 			}
 		}
